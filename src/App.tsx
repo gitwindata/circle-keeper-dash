@@ -11,10 +11,13 @@ import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import AddMember from "./pages/AddMember";
 import NotFound from "./pages/NotFound";
+import CircleLanding from "./pages/CircleLanding";
+import CircleLogin from "./pages/CircleLogin";
+import CircleDashboard from "./pages/CircleDashboard";
 
 const queryClient = new QueryClient();
 
-// Protected Route component
+// Protected Route component for admin
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
@@ -30,6 +33,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
+// Protected Route component for members
+const MemberProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [isMember, setIsMember] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const memberData = localStorage.getItem("hms_member_data");
+    setIsMember(!!memberData);
+  }, []);
+
+  if (isMember === null) {
+    return <div>Loading...</div>;
+  }
+
+  return isMember ? <>{children}</> : <Navigate to="/circle/login" />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -37,6 +56,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Admin routes */}
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={
@@ -69,6 +89,16 @@ const App = () => (
               <div>Settings page - Coming soon</div>
             </ProtectedRoute>
           } />
+          
+          {/* Member-facing routes */}
+          <Route path="/circle" element={<CircleLanding />} />
+          <Route path="/circle/login" element={<CircleLogin />} />
+          <Route path="/circle/dashboard" element={
+            <MemberProtectedRoute>
+              <CircleDashboard />
+            </MemberProtectedRoute>
+          } />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
