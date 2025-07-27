@@ -56,8 +56,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Member-facing routes */}
+          <Route path="/" element={<CircleLanding />} />
+          <Route path="/circle/login" element={<CircleLogin />} />
+          <Route path="/circle/dashboard" element={
+            <MemberProtectedRoute>
+              <CircleDashboard />
+            </MemberProtectedRoute>
+          } />
+
           {/* Admin routes */}
-          <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
@@ -90,14 +98,7 @@ const App = () => (
             </ProtectedRoute>
           } />
           
-          {/* Member-facing routes */}
           <Route path="/circle" element={<CircleLanding />} />
-          <Route path="/circle/login" element={<CircleLogin />} />
-          <Route path="/circle/dashboard" element={
-            <MemberProtectedRoute>
-              <CircleDashboard />
-            </MemberProtectedRoute>
-          } />
           
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 const CircleLanding = () => {
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col">
       {/* Hero Section */}
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center max-w-4xl">
