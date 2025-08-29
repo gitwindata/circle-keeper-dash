@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Search, Filter, Download, Plus, Edit, Trash2, Scissors } from "lucide-react";
+import { Search, Filter, Download, Plus, Edit, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
 interface Member {
   id: string;
@@ -118,39 +117,27 @@ const Members = () => {
   const services = [...new Set(members.map(m => m.service))];
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
-            <SidebarTrigger className="-ml-1" />
-            <div className="flex items-center gap-2">
-              <Scissors className="h-5 w-5" />
-              <h1 className="text-xl font-semibold">Members Management</h1>
-            </div>
-          </header>
-          
-          <div className="flex-1 p-6 space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight">Members</h2>
-                <p className="text-muted-foreground">
-                  Manage The Circle members and their information
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleExport} variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-                <Button asChild>
-                  <a href="/members/add">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Member
-                  </a>
-                </Button>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Members</h2>
+          <p className="text-muted-foreground">
+            Manage The Circle members and their information
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button asChild>
+            <Link to="/dashboard/members/add">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Member
+            </Link>
+          </Button>
+        </div>
+      </div>
 
             <Card>
               <CardHeader>
@@ -244,10 +231,7 @@ const Members = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    </div>
   );
 };
 

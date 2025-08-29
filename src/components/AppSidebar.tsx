@@ -2,13 +2,17 @@
 import { 
   Home, 
   Users, 
-  Scissors, 
   FileText, 
   Settings, 
   LogOut,
   UserPlus
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import React from "react"; // Import React
+
+const HmsLogoIcon = (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+  <img src="/hms logo white.svg" alt="HMS Logo" {...props} />
+);
 
 import {
   Sidebar,
@@ -23,60 +27,34 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Members",
-    url: "/members",
-    icon: Users,
-  },
-  {
-    title: "Add Member",
-    url: "/members/add",
-    icon: UserPlus,
-  },
-  {
-    title: "Stylists",
-    url: "/stylists",
-    icon: Scissors,
-  },
-  {
-    title: "Reports",
-    url: "/reports",
-    icon: FileText,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
-];
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+}
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  menuItems: MenuItem[];
+  onLogout: () => void;
+  userRole: "admin" | "hairstylist";
+}
+
+export function AppSidebar({ menuItems, onLogout, userRole }: AppSidebarProps) {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const isActive = (path: string) => currentPath === path;
-
-  const handleLogout = () => {
-    localStorage.removeItem("hms_admin_token");
-    window.location.href = "/login";
-  };
+  const isActive = (path: string) => currentPath.startsWith(path); // Use startsWith for nested routes
 
   return (
     <Sidebar className="border-r">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-primary/10 rounded-lg">
-            <Scissors className="h-5 w-5 text-primary" />
+            <img src="/hms logo white.svg" alt="HMS Logo" className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-lg font-semibold">HMS</h2>
-            <p className="text-sm text-muted-foreground">The Circle Admin</p>
+            <p className="text-sm text-muted-foreground">The Circle {userRole === "admin" ? "Admin" : "Hairstylist"}</p>
           </div>
         </div>
       </SidebarHeader>
@@ -107,7 +85,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout}>
+            <SidebarMenuButton onClick={onLogout}>
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>

@@ -6,10 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Scissors, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Link } from "react-router-dom";
 
 const AddMember = () => {
   const { toast } = useToast();
@@ -59,33 +58,21 @@ const AddMember = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
-            <SidebarTrigger className="-ml-1" />
-            <div className="flex items-center gap-2">
-              <Scissors className="h-5 w-5" />
-              <h1 className="text-xl font-semibold">Add New Member</h1>
-            </div>
-          </header>
-          
-          <div className="flex-1 p-6 space-y-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" asChild>
-                <a href="/members">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Members
-                </a>
-              </Button>
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight">Add New Member</h2>
-                <p className="text-muted-foreground">
-                  Add a new member to The Circle
-                </p>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/dashboard/members">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Members
+          </Link>
+        </Button>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Add New Member</h2>
+          <p className="text-muted-foreground">
+            Add a new member to The Circle
+          </p>
+        </div>
+      </div>
 
             <Card className="max-w-2xl">
               <CardHeader>
@@ -196,16 +183,13 @@ const AddMember = () => {
                       Add Member
                     </Button>
                     <Button type="button" variant="outline" asChild>
-                      <a href="/members">Cancel</a>
+                      <Link to="/dashboard/members">Cancel</Link>
                     </Button>
                   </div>
                 </form>
               </CardContent>
             </Card>
-          </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    </div>
   );
 };
 

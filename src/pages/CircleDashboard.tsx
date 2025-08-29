@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Scissors, Upload, LogOut } from "lucide-react";
+import { Upload, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface MemberData {
@@ -75,12 +75,12 @@ const CircleDashboard = () => {
   const firstName = memberData?.name?.split(' ')[0] || '';
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen text-white">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Scissors className="h-6 w-6 text-amber-600" />
+            <img src="/hms logo white.svg" alt="HMS Logo" className="h-24 w-24" />
             <span className="text-lg font-medium">The Circle</span>
           </div>
           <Button 
@@ -192,9 +192,9 @@ const CircleDashboard = () => {
         {/* Member Comment Section */}
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
-            <CardTitle className="text-white">Leave a Note</CardTitle>
+            <CardTitle className="text-white">Leave a Comment</CardTitle>
             <CardDescription className="text-gray-300">
-              Share your thoughts about your last visit
+              Tell us how your last visit felt — thoughts, preferences, or just a note.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -208,7 +208,7 @@ const CircleDashboard = () => {
               onClick={handleCommentSave}
               className="bg-amber-600 hover:bg-amber-700 text-white rounded-none border-none"
             >
-              Save Note
+              Send Feedback to HMS
             </Button>
           </CardContent>
         </Card>

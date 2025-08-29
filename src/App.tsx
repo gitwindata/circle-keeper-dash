@@ -10,10 +10,20 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import AddMember from "./pages/AddMember";
+import Hairstylists from "./pages/Stylists";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CircleLanding from "./pages/CircleLanding";
 import CircleLogin from "./pages/CircleLogin";
 import CircleDashboard from "./pages/CircleDashboard";
+import HairstylistDashboard from "./pages/HairstylistDashboard";
+import BiodataMember from "./pages/BiodataMember";
+import HairstylistLogin from "./pages/HairstylistLogin";
+import HairstylistLayout from "./layouts/HairstylistLayout";
+import HairstylistMyMembers from "./pages/HairstylistMyMembers";
+import HairstylistAllMembers from "./pages/HairstylistAllMembers";
+import AdminLayout from "./layouts/AdminLayout";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +59,22 @@ const MemberProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isMember ? <>{children}</> : <Navigate to="/circle/login" />;
 };
 
+// Protected Route component for hairstylists
+const HairstylistProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [isHairstylist, setIsHairstylist] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("hms_hairstylist_token");
+    setIsHairstylist(!!token);
+  }, []);
+
+  if (isHairstylist === null) {
+    return <div>Loading...</div>;
+  }
+
+  return isHairstylist ? <>{children}</> : <Navigate to="/hairstylist/login" />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -65,39 +91,40 @@ const App = () => (
             </MemberProtectedRoute>
           } />
 
+          {/* Hairstylist routes */}
+          <Route path="/hairstylist/login" element={<HairstylistLogin />} />
+          <Route path="/hairstylist/dashboard" element={
+            <HairstylistProtectedRoute>
+              <HairstylistLayout />
+            </HairstylistProtectedRoute>
+          }>
+            <Route index element={<HairstylistDashboard />} /> {/* Redirects to my-members */}
+            <Route path="my-members" element={<HairstylistMyMembers />} />
+            <Route path="all-members" element={<HairstylistAllMembers />} />
+          </Route>
+
           {/* Admin routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <AdminLayout />
             </ProtectedRoute>
-          } />
-          <Route path="/members" element={
-            <ProtectedRoute>
-              <Members />
-            </ProtectedRoute>
-          } />
-          <Route path="/members/add" element={
-            <ProtectedRoute>
-              <AddMember />
-            </ProtectedRoute>
-          } />
-          <Route path="/stylists" element={
-            <ProtectedRoute>
-              <div>Stylists page - Coming soon</div>
-            </ProtectedRoute>
-          } />
-          <Route path="/reports" element={
-            <ProtectedRoute>
-              <div>Reports page - Coming soon</div>
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <div>Settings page - Coming soon</div>
-            </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<Dashboard />} />
+            <Route path="members" element={<Members />} />
+            <Route path="members/add" element={<AddMember />} />
+            <Route path="stylists" element={<Hairstylists />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
           
+          {/* Global Member Biodata View */}
+          <Route path="biodata-member" element={
+            <ProtectedRoute>
+              <BiodataMember />
+            </ProtectedRoute>
+          } />
+
           <Route path="/circle" element={<CircleLanding />} />
           
           <Route path="*" element={<NotFound />} />
