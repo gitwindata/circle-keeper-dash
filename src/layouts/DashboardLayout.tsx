@@ -2,7 +2,8 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { LogOut } from 'lucide-react';
+import { useAuth } from '../hooks/use-auth';
+import { toast } from 'sonner';
 
 interface MenuItem {
   title: string;
@@ -17,15 +18,15 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ menuItems, userRole }) => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    if (userRole === "admin") {
-      localStorage.removeItem("hms_admin_token");
-      navigate("/login");
-    } else if (userRole === "hairstylist") {
-      localStorage.removeItem("hms_hairstylist_token");
-      localStorage.removeItem("hms_hairstylist_id");
-      navigate("/hairstylist/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Failed to logout');
     }
   };
 

@@ -1,18 +1,26 @@
 import React from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { Home, Users, LogOut } from 'lucide-react'; // Added LogOut icon
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button'; // Explicitly import Button
+import { Button } from '@/components/ui/button';
+import { useAuth } from '../hooks/use-auth';
+import { toast } from 'sonner';
 
 const HairstylistLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem('hms_hairstylist_token');
-    localStorage.removeItem('hms_hairstylist_id');
-    navigate('/hairstylist/login');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast.error('Failed to logout');
+    }
   };
 
   return (
@@ -28,26 +36,15 @@ const HairstylistLayout = () => {
             <ScrollArea className="h-full px-3 py-2">
               <nav className="grid items-start gap-2 text-sm font-medium lg:px-4">
                 <Link
-                  to="/hairstylist/dashboard/my-members"
+                  to="/hairstylist/dashboard"
                   className={cn(
                     buttonVariants({ variant: 'ghost' }),
                     'w-full justify-start',
-                    location.pathname === '/hairstylist/dashboard/my-members' && 'bg-muted hover:bg-muted'
+                    location.pathname === '/hairstylist/dashboard' && 'bg-muted hover:bg-muted'
                   )}
                 >
-                  <Home className="h-4 w-4 mr-2" />
-                  Member yang Saya Tangani
-                </Link>
-                <Link
-                  to="/hairstylist/dashboard/all-members"
-                  className={cn(
-                    buttonVariants({ variant: 'ghost' }),
-                    'w-full justify-start',
-                    location.pathname === '/hairstylist/dashboard/all-members' && 'bg-muted hover:bg-muted'
-                  )}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Semua Biodata Member
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  Dashboard
                 </Link>
               </nav>
             </ScrollArea>

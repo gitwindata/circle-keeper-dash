@@ -1,6 +1,6 @@
 import React from 'react';
 import DashboardLayout from './DashboardLayout';
-import { LayoutDashboard, Users, Settings, TrendingUp, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Users } from 'lucide-react';
 
 const adminMenuItems = [
   {
@@ -14,24 +14,9 @@ const adminMenuItems = [
     icon: Users,
   },
   {
-    title: "Add Member",
-    url: "/dashboard/members/add",
-    icon: UserPlus,
-  },
-  {
-    title: "Stylists",
+    title: "Hairstylists",
     url: "/dashboard/stylists",
-    icon: Users, // Re-using Users icon for now, consider a specific icon for stylists
-  },
-  {
-    title: "Reports",
-    url: "/dashboard/reports",
-    icon: TrendingUp,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings,
+    icon: Users,
   },
 ];
 
