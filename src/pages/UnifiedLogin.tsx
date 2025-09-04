@@ -1,49 +1,67 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../hooks/use-auth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Scissors } from 'lucide-react';
-import { toast } from 'sonner';
-import QuickProfileFix from '../components/QuickProfileFix';
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, Scissors } from "lucide-react";
+import { toast } from "sonner";
+import QuickProfileFix from "../components/QuickProfileFix";
 
 const UnifiedLogin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, userProfile, isAuthenticated, loading: authLoading } = useAuth();
+  const {
+    signIn,
+    userProfile,
+    isAuthenticated,
+    loading: authLoading,
+  } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
-    console.log('🔄 UnifiedLogin useEffect - isAuthenticated:', isAuthenticated, 'userProfile:', userProfile?.role, 'authLoading:', authLoading);
-    
+    console.log(
+      "🔄 UnifiedLogin useEffect - isAuthenticated:",
+      isAuthenticated,
+      "userProfile:",
+      userProfile?.role,
+      "authLoading:",
+      authLoading
+    );
+
     if (authLoading) {
-      console.log('😴 Auth still loading, waiting...');
+      console.log("😴 Auth still loading, waiting...");
       return;
     }
-    
+
     if (isAuthenticated && userProfile && !authLoading) {
-      console.log('🔄 User already authenticated, redirecting...');
+      console.log("🔄 User already authenticated, redirecting...");
       switch (userProfile.role) {
-        case 'admin':
-          console.log('👑 Redirecting admin to dashboard');
-          navigate('/dashboard', { replace: true });
+        case "admin":
+          console.log("👑 Redirecting admin to dashboard");
+          navigate("/dashboard", { replace: true });
           break;
-        case 'hairstylist':
-          console.log('✂️ Redirecting hairstylist to dashboard');
-          navigate('/hairstylist/dashboard', { replace: true });
+        case "hairstylist":
+          console.log("✂️ Redirecting hairstylist to dashboard");
+          navigate("/hairstylist/dashboard", { replace: true });
           break;
-        case 'member':
-          console.log('👤 Redirecting member to dashboard');
-          navigate('/member/dashboard', { replace: true });
+        case "member":
+          console.log("👤 Redirecting member to dashboard");
+          navigate("/member/dashboard", { replace: true });
           break;
         default:
-          console.log('❌ Unknown role, staying on login');
+          console.log("❌ Unknown role, staying on login");
           break;
       }
     }
@@ -58,23 +76,23 @@ const UnifiedLogin = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      console.log('🚀 Starting login process...');
+      console.log("🚀 Starting login process...");
       await signIn(email, password);
-      console.log('✅ Sign in completed, checking for redirect...');
-      
+      console.log("✅ Sign in completed, checking for redirect...");
+
       // Don't navigate here, let the useEffect handle redirection
       // after the auth state is properly updated
     } catch (error: unknown) {
-      console.error('❌ Login error:', error);
+      console.error("❌ Login error:", error);
       setLoading(false); // Reset loading state on error
       // Error toast is already shown in the signIn function
     }
@@ -95,7 +113,7 @@ const UnifiedLogin = () => {
                   <Scissors className="w-6 h-6 text-white" />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <CardTitle className="text-2xl font-semibold text-gray-900">
                   Welcome back
@@ -109,7 +127,10 @@ const UnifiedLogin = () => {
             <CardContent className="px-8 pb-8">
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="email"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Email address
                   </Label>
                   <Input
@@ -122,9 +143,12 @@ const UnifiedLogin = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="password"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Password
                   </Label>
                   <div className="relative">
@@ -152,10 +176,10 @@ const UnifiedLogin = () => {
                     </Button>
                   </div>
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg shadow-sm" 
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg shadow-sm"
                   disabled={loading}
                 >
                   {loading ? (
@@ -172,15 +196,24 @@ const UnifiedLogin = () => {
               {/* Demo Credentials */}
               <div className="mt-8 pt-6 border-t border-gray-100">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Demo Accounts</h4>
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">
+                    Demo Accounts
+                  </h4>
                   <div className="text-xs text-blue-700 space-y-1">
-                    <div><strong>Admin:</strong> admin@haijoel.com / admin123</div>
-                    <div><strong>Hairstylist:</strong> stylist@haijoel.com / stylist123</div>
-                    <div><strong>Member:</strong> member@haijoel.com / member123</div>
+                    <div>
+                      <strong>Admin:</strong> admin@haijoel.com / admin123
+                    </div>
+                    <div>
+                      <strong>Hairstylist:</strong> stylist@haijoel.com /
+                      stylist123
+                    </div>
+                    <div>
+                      <strong>Member:</strong> member@haijoel.com / member123
+                    </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="text-center mt-6">
                 <p className="text-sm text-gray-500">
                   Haijoel Men's Salon Management System
@@ -188,7 +221,7 @@ const UnifiedLogin = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-400">

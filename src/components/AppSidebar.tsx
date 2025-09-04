@@ -1,8 +1,4 @@
-
-import { 
-  LogOut,
-  Scissors
-} from "lucide-react";
+import { LogOut, Scissors } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import React from "react";
 
@@ -37,11 +33,11 @@ export function AppSidebar({ menuItems, onLogout, userRole }: AppSidebarProps) {
 
   const isActive = (path: string) => {
     // Exact match for root dashboard path
-    if (path === '/dashboard' && currentPath === '/dashboard') {
+    if (path === "/dashboard" && currentPath === "/dashboard") {
       return true;
     }
     // For sub-paths, check if current path matches exactly
-    if (path !== '/dashboard' && currentPath === path) {
+    if (path !== "/dashboard" && currentPath === path) {
       return true;
     }
     return false;
@@ -55,7 +51,9 @@ export function AppSidebar({ menuItems, onLogout, userRole }: AppSidebarProps) {
             <Scissors className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Circle Keeper</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Circle Keeper
+            </h2>
             <p className="text-sm text-gray-600 capitalize">{userRole}</p>
           </div>
         </div>
@@ -67,8 +65,8 @@ export function AppSidebar({ menuItems, onLogout, userRole }: AppSidebarProps) {
             <SidebarMenu className="space-y-1">
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
+                  <SidebarMenuButton
+                    asChild
                     isActive={isActive(item.url)}
                     className="w-full h-11 px-3 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-700 data-[active=true]:border-orange-200"
                   >
@@ -87,7 +85,7 @@ export function AppSidebar({ menuItems, onLogout, userRole }: AppSidebarProps) {
       <SidebarFooter className="p-4 border-t border-gray-100 bg-white">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               onClick={onLogout}
               className="w-full h-11 px-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
             >

@@ -51,15 +51,15 @@ interface MemberFormData {
 
 const Members = () => {
   const [members, setMembers] = useState<
-    (Member & { user_profile: UserProfile | null })[]
+    (Member & { user_profile: UserProfile })[]
   >([]);
   const [filteredMembers, setFilteredMembers] = useState<
-    (Member & { user_profile: UserProfile | null })[]
+    (Member & { user_profile: UserProfile })[]
   >([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingMember, setEditingMember] = useState<
-    (Member & { user_profile: UserProfile | null }) | null
+    (Member & { user_profile: UserProfile }) | null
   >(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<MemberFormData>({
@@ -95,7 +95,6 @@ const Members = () => {
     try {
       setLoading(true);
       const data = await memberHelpers.getAllMembersWithProfiles();
-      console.log("Loaded members data:", data);
       setMembers(data);
       setFilteredMembers(data);
     } catch (error) {
@@ -139,14 +138,7 @@ const Members = () => {
     }
   };
 
-  const handleEditMember = (
-    member: Member & { user_profile: UserProfile | null }
-  ) => {
-    if (!member.user_profile) {
-      toast.error("Cannot edit member: User profile not found");
-      return;
-    }
-
+  const handleEditMember = (member: Member & { user_profile: UserProfile }) => {
     setEditingMember(member);
     setFormData({
       full_name: member.user_profile.full_name,
@@ -191,9 +183,7 @@ const Members = () => {
         setMembers((prev) => prev.filter((m) => m.id !== memberId));
         setFilteredMembers((prev) => prev.filter((m) => m.id !== memberId));
         toast.success(
-          `${
-            member.user_profile?.full_name || "Member"
-          } has been removed from The Circle.`
+          `${member.user_profile.full_name} has been removed from The Circle.`
         );
       } catch (error: unknown) {
         console.error("Error deleting member:", error);
@@ -216,16 +206,16 @@ const Members = () => {
     if (searchTerm) {
       const filtered = members.filter(
         (member) =>
-          member.user_profile?.full_name
+          member.user_profile.full_name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          member.user_profile.email
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          member.user_profile.phone
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          member.user_profile?.email
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          member.user_profile?.phone
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          member.user_profile?.whatsapp_number
+          member.user_profile.whatsapp_number
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase())
       );
@@ -431,6 +421,7 @@ const Members = () => {
 
       <Card>
         <CardHeader>
+          <CardTitle>Member Database</CardTitle>
           <CardDescription>
             {filteredMembers.length} of {members.length} members
           </CardDescription>
@@ -466,22 +457,22 @@ const Members = () => {
                     <TableCell className="font-medium">
                       <div>
                         <div className="font-medium">
-                          {member.user_profile?.full_name || "N/A"}
+                          {member.user_profile.full_name}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {member.user_profile?.email || "N/A"}
+                          {member.user_profile.email}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {member.user_profile?.phone && (
+                        {member.user_profile.phone && (
                           <div>📞 {member.user_profile.phone}</div>
                         )}
-                        {member.user_profile?.whatsapp_number && (
+                        {member.user_profile.whatsapp_number && (
                           <div>💬 {member.user_profile.whatsapp_number}</div>
                         )}
-                        {member.user_profile?.instagram_handle && (
+                        {member.user_profile.instagram_handle && (
                           <div>📷 {member.user_profile.instagram_handle}</div>
                         )}
                       </div>
@@ -495,12 +486,12 @@ const Members = () => {
                     <TableCell>
                       <Badge
                         variant={
-                          member.user_profile?.is_active
+                          member.user_profile.is_active
                             ? "default"
                             : "secondary"
                         }
                       >
-                        {member.user_profile?.is_active ? "Active" : "Inactive"}
+                        {member.user_profile.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -509,7 +500,6 @@ const Members = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditMember(member)}
-                          disabled={!member.user_profile}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>

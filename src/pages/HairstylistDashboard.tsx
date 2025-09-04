@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,31 +14,48 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Users, 
-  Calendar, 
-  TrendingUp, 
-  Star, 
-  Clock, 
-  DollarSign, 
-  Camera, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Users,
+  Calendar,
+  TrendingUp,
+  Star,
+  Clock,
+  DollarSign,
+  Camera,
   MessageSquare,
   Award,
   Activity,
   Plus,
-  UserPlus
+  UserPlus,
 } from "lucide-react";
-import { useAuth } from '../hooks/use-auth';
-import { hairstylistHelpers, visitHelpers, memberHelpers } from '../lib/supabase-helpers';
-import { MembershipCalculator } from '../lib/membership-calculator';
-import VisitRecordingForm from '../components/VisitRecordingForm';
-import PersonalNotesManager from '../components/PersonalNotesManager';
-import MemberAssignmentDialog from '../components/MemberAssignmentDialog';
-import PhotoGallery from '../components/PhotoGallery';
-import { Member, Visit, Hairstylist, MembershipTier } from '../types';
-import { format } from 'date-fns';
+import { useAuth } from "../hooks/use-auth";
+import {
+  hairstylistHelpers,
+  visitHelpers,
+  memberHelpers,
+} from "../lib/supabase-helpers";
+import { MembershipCalculator } from "../lib/membership-calculator";
+import VisitRecordingForm from "../components/VisitRecordingForm";
+import PersonalNotesManager from "../components/PersonalNotesManager";
+import MemberAssignmentDialog from "../components/MemberAssignmentDialog";
+import PhotoGallery from "../components/PhotoGallery";
+import { Member, Visit, Hairstylist, MembershipTier } from "../types";
+import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 
 interface HairstylistStats {
@@ -46,7 +69,7 @@ interface HairstylistStats {
 
 interface RecentActivity {
   id: string;
-  type: 'visit' | 'note' | 'photo' | 'review';
+  type: "visit" | "note" | "photo" | "review";
   description: string;
   timestamp: string;
   member?: string;
@@ -55,7 +78,9 @@ interface RecentActivity {
 const HairstylistDashboard = () => {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
-  const [hairstylistData, setHairstylistData] = useState<Hairstylist | null>(null);
+  const [hairstylistData, setHairstylistData] = useState<Hairstylist | null>(
+    null
+  );
   const [assignedMembers, setAssignedMembers] = useState<Member[]>([]);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [stats, setStats] = useState<HairstylistStats>({
@@ -69,113 +94,117 @@ const HairstylistDashboard = () => {
       silver: 0,
       gold: 0,
       platinum: 0,
-      diamond: 0
-    }
+      diamond: 0,
+    },
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
 
   useEffect(() => {
-    if (user && userProfile?.role === 'hairstylist') {
+    if (user && userProfile?.role === "hairstylist") {
       loadHairstylistData();
     }
   }, [user, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadHairstylistData = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      console.log('🔄 Loading hairstylist data for user ID:', user.id);
-      
+      console.log("🔄 Loading hairstylist data for user ID:", user.id);
+
       // Load hairstylist profile
-      const hairstylist = await hairstylistHelpers.getHairstylistWithProfile(user.id);
+      const hairstylist = await hairstylistHelpers.getHairstylistWithProfile(
+        user.id
+      );
       if (!hairstylist) {
         toast({
           title: "Error",
           description: "Hairstylist profile not found",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
       setHairstylistData(hairstylist);
-      console.log('✅ Hairstylist profile loaded:', hairstylist);
-      
+      console.log("✅ Hairstylist profile loaded:", hairstylist);
+
       // Load assigned members using user ID (not hairstylist.id)
-      console.log('🔍 Loading assigned members for user ID:', user.id);
+      console.log("🔍 Loading assigned members for user ID:", user.id);
       const members = await hairstylistHelpers.getAssignedMembers(user.id);
       setAssignedMembers(members);
-      console.log('👥 Assigned members loaded:', members);
-      
+      console.log("👥 Assigned members loaded:", members);
+
       // Load recent visits
       const visits = await visitHelpers.getVisitsWithDetails({
         hairstylist_id: user.id,
-        limit: 20
+        limit: 20,
       });
       setRecentVisits(visits);
-      
+
       // Calculate stats
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
+
       const thisWeekVisits = visits.filter(
-        visit => new Date(visit.visit_date) >= weekAgo
+        (visit) => new Date(visit.visit_date) >= weekAgo
       ).length;
-      
+
       const thisMonthRevenue = visits
-        .filter(visit => new Date(visit.visit_date) >= monthAgo)
+        .filter((visit) => new Date(visit.visit_date) >= monthAgo)
         .reduce((sum, visit) => sum + (visit.final_price || 0), 0);
-      
+
       // Calculate membership distribution of assigned members
       const membershipDistribution: Record<MembershipTier, number> = {
         bronze: 0,
         silver: 0,
         gold: 0,
         platinum: 0,
-        diamond: 0
+        diamond: 0,
       };
-      
-      members.forEach(member => {
+
+      members.forEach((member) => {
         membershipDistribution[member.membership_tier]++;
       });
-      
+
       setStats({
         totalAssignedMembers: members.length,
         thisWeekVisits,
         thisMonthRevenue,
         averageRating: 4.7, // Could calculate from reviews
         totalVisits: visits.length,
-        membershipDistribution
+        membershipDistribution,
       });
-      
+
       // Generate recent activity
       const activities: RecentActivity[] = [];
-      
+
       // Add recent visits
-      visits.slice(0, 5).forEach(visit => {
+      visits.slice(0, 5).forEach((visit) => {
         activities.push({
           id: `visit-${visit.id}`,
-          type: 'visit',
+          type: "visit",
           description: `Visit completed with ${visit.member?.user_profile?.full_name}`,
           timestamp: visit.visit_date,
-          member: visit.member?.user_profile?.full_name
+          member: visit.member?.user_profile?.full_name,
         });
       });
-      
+
       // Sort activities by timestamp
-      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      activities.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
       setRecentActivity(activities.slice(0, 8));
-      
     } catch (error) {
-      console.error('Failed to load hairstylist data:', error);
+      console.error("Failed to load hairstylist data:", error);
       toast({
         title: "Error",
         description: "Failed to load dashboard data",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -189,20 +218,25 @@ const HairstylistDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
-  const getActivityIcon = (type: RecentActivity['type']) => {
+  const getActivityIcon = (type: RecentActivity["type"]) => {
     switch (type) {
-      case 'visit': return <Calendar className="h-4 w-4 text-blue-500" />;
-      case 'note': return <MessageSquare className="h-4 w-4 text-green-500" />;
-      case 'photo': return <Camera className="h-4 w-4 text-purple-500" />;
-      case 'review': return <Star className="h-4 w-4 text-yellow-500" />;
-      default: return <Activity className="h-4 w-4 text-gray-500" />;
+      case "visit":
+        return <Calendar className="h-4 w-4 text-blue-500" />;
+      case "note":
+        return <MessageSquare className="h-4 w-4 text-green-500" />;
+      case "photo":
+        return <Camera className="h-4 w-4 text-purple-500" />;
+      case "review":
+        return <Star className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -241,29 +275,29 @@ const HairstylistDashboard = () => {
       value: stats.totalAssignedMembers,
       icon: Users,
       description: "Members under your care",
-      color: "text-blue-600"
+      color: "text-blue-600",
     },
     {
       title: "This Week Visits",
       value: stats.thisWeekVisits,
       icon: Calendar,
       description: "Last 7 days",
-      color: "text-green-600"
+      color: "text-green-600",
     },
     {
       title: "Monthly Revenue",
       value: formatCurrency(stats.thisMonthRevenue),
       icon: DollarSign,
       description: "Last 30 days",
-      color: "text-purple-600"
+      color: "text-purple-600",
     },
     {
       title: "Your Rating",
       value: `${stats.averageRating}/5`,
       icon: Star,
       description: "Customer rating",
-      color: "text-orange-600"
-    }
+      color: "text-orange-600",
+    },
   ];
 
   return (
@@ -272,7 +306,7 @@ const HairstylistDashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
-            Welcome, {userProfile.full_name?.split(' ')[0]}
+            Welcome, {userProfile.full_name?.split(" ")[0]}
           </h2>
           <p className="text-muted-foreground">
             Here's your performance overview and client management tools
@@ -283,8 +317,8 @@ const HairstylistDashboard = () => {
             <Plus className="h-4 w-4 mr-2" />
             Record Visit
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setShowAssignmentDialog(true)}
           >
             <UserPlus className="h-4 w-4 mr-2" />
@@ -314,7 +348,11 @@ const HairstylistDashboard = () => {
       </div>
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">My Members</TabsTrigger>
@@ -337,12 +375,20 @@ const HairstylistDashboard = () => {
               <CardContent>
                 <div className="space-y-4">
                   {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-center space-x-3">
+                    <div
+                      key={activity.id}
+                      className="flex items-center space-x-3"
+                    >
                       {getActivityIcon(activity.type)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{activity.description}</p>
+                        <p className="text-sm font-medium truncate">
+                          {activity.description}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(activity.timestamp), 'MMM d, h:mm a')}
+                          {format(
+                            new Date(activity.timestamp),
+                            "MMM d, h:mm a"
+                          )}
                         </p>
                       </div>
                     </div>
@@ -366,29 +412,40 @@ const HairstylistDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(stats.membershipDistribution).map(([tier, count]) => {
-                    const tierInfo = MembershipCalculator.getLevelInfo(tier as MembershipTier);
-                    const percentage = stats.totalAssignedMembers > 0 ? (count / stats.totalAssignedMembers) * 100 : 0;
-                    
-                    return (
-                      <div key={tier} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge className={`${getMembershipColor(tier as MembershipTier)} text-white text-xs`}>
-                              {tierInfo.name}
-                            </Badge>
-                            <span className="text-muted-foreground">
-                              {count} members
+                  {Object.entries(stats.membershipDistribution).map(
+                    ([tier, count]) => {
+                      const tierInfo = MembershipCalculator.getLevelInfo(
+                        tier as MembershipTier
+                      );
+                      const percentage =
+                        stats.totalAssignedMembers > 0
+                          ? (count / stats.totalAssignedMembers) * 100
+                          : 0;
+
+                      return (
+                        <div key={tier} className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${getMembershipColor(
+                                  tier as MembershipTier
+                                )} text-white text-xs`}
+                              >
+                                {tierInfo.name}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                {count} members
+                              </span>
+                            </div>
+                            <span className="font-medium">
+                              {percentage.toFixed(1)}%
                             </span>
                           </div>
-                          <span className="font-medium">
-                            {percentage.toFixed(1)}%
-                          </span>
+                          <Progress value={percentage} className="h-1" />
                         </div>
-                        <Progress value={percentage} className="h-1" />
-                      </div>
-                    );
-                  })}
+                      );
+                    }
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -420,7 +477,7 @@ const HairstylistDashboard = () => {
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={member.user_profile?.avatar_url} />
                           <AvatarFallback>
-                            {member.user_profile?.full_name?.[0] || 'M'}
+                            {member.user_profile?.full_name?.[0] || "M"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
@@ -428,13 +485,20 @@ const HairstylistDashboard = () => {
                             {member.user_profile?.full_name}
                           </p>
                           <div className="flex items-center gap-2">
-                            <Badge 
-                              className={`${getMembershipColor(member.membership_tier)} text-white text-xs`}
+                            <Badge
+                              className={`${getMembershipColor(
+                                member.membership_tier
+                              )} text-white text-xs`}
                             >
-                              {MembershipCalculator.formatTierName(member.membership_tier)}
+                              {MembershipCalculator.formatTierName(
+                                member.membership_tier
+                              )}
                             </Badge>
                             {!member.user_profile?.is_active && (
-                              <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-orange-300 text-orange-600"
+                              >
                                 Pending
                               </Badge>
                             )}
@@ -444,39 +508,45 @@ const HairstylistDashboard = () => {
                       <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                         <div>
                           <span>Visits: </span>
-                          <span className="font-medium">{member.total_visits}</span>
+                          <span className="font-medium">
+                            {member.total_visits}
+                          </span>
                         </div>
                         <div>
                           <span>Points: </span>
-                          <span className="font-medium">{member.membership_points}</span>
+                          <span className="font-medium">
+                            {member.membership_points}
+                          </span>
                         </div>
                       </div>
-                      
+
                       {/* Membership Progress */}
                       <div className="mt-3 space-y-2">
                         <div className="flex justify-between text-xs">
                           <span>Progress to next tier</span>
                           <span>
                             {(() => {
-                              const progress = MembershipCalculator.calculateProgress(
-                                member.total_visits, 
-                                member.total_spent, 
-                                member.membership_tier
-                              );
+                              const progress =
+                                MembershipCalculator.calculateProgress(
+                                  member.total_visits,
+                                  member.total_spent,
+                                  member.membership_tier
+                                );
                               return `${Math.round(progress.overallProgress)}%`;
-                            })()} 
+                            })()}
                           </span>
                         </div>
-                        <Progress 
+                        <Progress
                           value={(() => {
-                            const progress = MembershipCalculator.calculateProgress(
-                              member.total_visits, 
-                              member.total_spent, 
-                              member.membership_tier
-                            );
+                            const progress =
+                              MembershipCalculator.calculateProgress(
+                                member.total_visits,
+                                member.total_spent,
+                                member.membership_tier
+                              );
                             return progress.overallProgress;
-                          })()} 
-                          className="h-1" 
+                          })()}
+                          className="h-1"
                         />
                       </div>
                     </CardContent>
@@ -485,8 +555,12 @@ const HairstylistDashboard = () => {
                 {assignedMembers.length === 0 && (
                   <div className="col-span-full text-center py-8">
                     <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Members Assigned</h3>
-                    <p className="text-gray-600">Contact your admin to get members assigned to you.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Members Assigned
+                    </h3>
+                    <p className="text-gray-600">
+                      Contact your admin to get members assigned to you.
+                    </p>
                   </div>
                 )}
               </div>
@@ -510,9 +584,11 @@ const HairstylistDashboard = () => {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={visit.member?.user_profile?.avatar_url} />
+                          <AvatarImage
+                            src={visit.member?.user_profile?.avatar_url}
+                          />
                           <AvatarFallback>
-                            {visit.member?.user_profile?.full_name?.[0] || 'M'}
+                            {visit.member?.user_profile?.full_name?.[0] || "M"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
@@ -520,7 +596,10 @@ const HairstylistDashboard = () => {
                             {visit.member?.user_profile?.full_name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {format(new Date(visit.visit_date), 'MMM d, yyyy • h:mm a')}
+                            {format(
+                              new Date(visit.visit_date),
+                              "MMM d, yyyy • h:mm a"
+                            )}
                           </p>
                         </div>
                       </div>
@@ -535,17 +614,17 @@ const HairstylistDashboard = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {visit.services && visit.services.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {visit.services.map((vs, index: number) => (
                           <Badge key={index} variant="secondary">
-                            {vs.service?.name || 'Unknown Service'}
+                            {vs.service?.name || "Unknown Service"}
                           </Badge>
                         ))}
                       </div>
                     )}
-                    
+
                     {visit.hairstylist_notes && (
                       <p className="text-sm text-muted-foreground italic">
                         "{visit.hairstylist_notes}"
@@ -556,8 +635,12 @@ const HairstylistDashboard = () => {
                 {recentVisits.length === 0 && (
                   <div className="text-center py-8">
                     <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Visits Yet</h3>
-                    <p className="text-gray-600">Start recording visits to see them here.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Visits Yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Start recording visits to see them here.
+                    </p>
                   </div>
                 )}
               </div>
@@ -586,9 +669,7 @@ const HairstylistDashboard = () => {
 
         {/* Notes Tab */}
         <TabsContent value="notes">
-          <PersonalNotesManager 
-            hairstylistId={user?.id || ''}
-          />
+          <PersonalNotesManager hairstylistId={user?.id || ""} />
         </TabsContent>
       </Tabs>
 
@@ -599,15 +680,12 @@ const HairstylistDashboard = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Record New Visit</h2>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setShowVisitForm(false)}
-                >
+                <Button variant="ghost" onClick={() => setShowVisitForm(false)}>
                   ×
                 </Button>
               </div>
               <VisitRecordingForm
-                hairstylistId={user?.id || ''}
+                hairstylistId={user?.id || ""}
                 assignedMembers={assignedMembers}
                 onVisitRecorded={() => {
                   setShowVisitForm(false);
@@ -624,7 +702,7 @@ const HairstylistDashboard = () => {
       <MemberAssignmentDialog
         open={showAssignmentDialog}
         onOpenChange={setShowAssignmentDialog}
-        hairstylistId={user?.id || ''}
+        hairstylistId={user?.id || ""}
         onAssignmentComplete={handleAssignmentComplete}
       />
     </div>
