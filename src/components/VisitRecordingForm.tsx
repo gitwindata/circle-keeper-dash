@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react";
 import { ServiceManager } from '../lib/service-manager';
+import { serviceHelpers } from '../lib/supabase-helpers';
 import { MembershipCalculator } from '../lib/membership-calculator';
 import { memberHelpers, visitHelpers } from '../lib/supabase-helpers';
 import { Member, Service, MembershipTier } from '../types';
@@ -58,6 +59,8 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
   const [selectedMemberId, setSelectedMemberId] = useState(preSelectedMemberId || '');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
   const [customDiscount, setCustomDiscount] = useState(0);
   const [hairstylistNotes, setHairstylistNotes] = useState('');
   const [personalNotes, setPersonalNotes] = useState('');
@@ -66,7 +69,23 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: Member & Services, 2: Photos & Notes, 3: Review
 
-  const availableServices = ServiceManager.getAllServices();
+  // Load services from Supabase
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        setLoadingServices(true);
+        const services = await serviceHelpers.getAllServices();
+        setAvailableServices(services);
+      } catch (error) {
+        console.error('Failed to load services:', error);
+        toast.error('Failed to load services');
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    loadServices();
+  }, []);
 
   useEffect(() => {
     if (selectedMemberId) {
@@ -75,8 +94,8 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
     }
   }, [selectedMemberId, assignedMembers]);
 
-  const addService = (serviceId: string) => {
-    const service = ServiceManager.getServiceById(serviceId);
+    const addService = async (serviceId: string) => {
+    const service = availableServices.find(s => s.id === serviceId);
     if (!service) return;
 
     // Check if service already added
@@ -88,7 +107,6 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
     setSelectedServices(prev => [...prev, {
       serviceId,
       service,
-      customPrice: service.base_price
     }]);
   };
 
@@ -319,25 +337,34 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Service Categories */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {availableServices.map((service) => (
-                  <Button
-                    key={service.id}
-                    variant="outline"
-                    className="h-auto p-4 text-left justify-start"
-                    onClick={() => addService(service.id)}
-                    disabled={selectedServices.some(s => s.serviceId === service.id)}
-                  >
-                    <div className="space-y-1">
-                      <div className="font-medium">{service.name}</div>
-                      <div className="text-sm text-gray-600">
-                        {formatCurrency(service.base_price)} • {formatDuration(service.duration_minutes)}
+              {loadingServices ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading services...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {availableServices.map((service) => (
+                    <Button
+                      key={service.id}
+                      variant="outline"
+                      className="h-auto p-4 text-left justify-start"
+                      onClick={() => addService(service.id)}
+                      disabled={selectedServices.some(s => s.serviceId === service.id)}
+                    >
+                      <div className="space-y-1">
+                        <div className="font-medium">{service.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {formatCurrency(service.base_price)} • {formatDuration(service.duration_minutes)}
+                        </div>
+                        <Badge variant="secondary">{service.category}</Badge>
                       </div>
-                      <Badge variant="secondary">{service.category}</Badge>
-                    </div>
-                  </Button>
-                ))}
-              </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
 
               {/* Selected Services */}
               {selectedServices.length > 0 && (

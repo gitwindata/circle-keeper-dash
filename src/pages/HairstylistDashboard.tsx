@@ -25,14 +25,15 @@ import {
   UserPlus
 } from "lucide-react";
 import { useAuth } from '../hooks/use-auth';
-import { hairstylistHelpers, visitHelpers } from '../lib/supabase-helpers';
+import { hairstylistHelpers, visitHelpers, memberHelpers } from '../lib/supabase-helpers';
 import { MembershipCalculator } from '../lib/membership-calculator';
 import VisitRecordingForm from '../components/VisitRecordingForm';
 import PersonalNotesManager from '../components/PersonalNotesManager';
+import MemberAssignmentDialog from '../components/MemberAssignmentDialog';
 import PhotoGallery from '../components/PhotoGallery';
 import { Member, Visit, Hairstylist, MembershipTier } from '../types';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { useToast } from "@/components/ui/use-toast";
 
 interface HairstylistStats {
   totalAssignedMembers: number;
@@ -51,16 +52,9 @@ interface RecentActivity {
   member?: string;
 }
 
-interface MemberFormData {
-  fullName: string;
-  whatsapp: string;
-  instagram: string;
-  membershipTier: MembershipTier;
-  personalNotes: string;
-}
-
 const HairstylistDashboard = () => {
   const { user, userProfile } = useAuth();
+  const { toast } = useToast();
   const [hairstylistData, setHairstylistData] = useState<Hairstylist | null>(null);
   const [assignedMembers, setAssignedMembers] = useState<Member[]>([]);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
@@ -82,38 +76,39 @@ const HairstylistDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showVisitForm, setShowVisitForm] = useState(false);
-  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
-  const [memberFormData, setMemberFormData] = useState<MemberFormData>({
-    fullName: '',
-    whatsapp: '',
-    instagram: '',
-    membershipTier: 'bronze',
-    personalNotes: ''
-  });
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
 
   useEffect(() => {
     if (user && userProfile?.role === 'hairstylist') {
       loadHairstylistData();
     }
-  }, [user, userProfile]);
+  }, [user, userProfile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadHairstylistData = async () => {
     if (!user) return;
     
     try {
       setLoading(true);
+      console.log('🔄 Loading hairstylist data for user ID:', user.id);
       
       // Load hairstylist profile
       const hairstylist = await hairstylistHelpers.getHairstylistWithProfile(user.id);
       if (!hairstylist) {
-        toast.error('Hairstylist profile not found');
+        toast({
+          title: "Error",
+          description: "Hairstylist profile not found",
+          variant: "destructive"
+        });
         return;
       }
       setHairstylistData(hairstylist);
+      console.log('✅ Hairstylist profile loaded:', hairstylist);
       
-      // Load assigned members
+      // Load assigned members using user ID (not hairstylist.id)
+      console.log('🔍 Loading assigned members for user ID:', user.id);
       const members = await hairstylistHelpers.getAssignedMembers(user.id);
       setAssignedMembers(members);
+      console.log('👥 Assigned members loaded:', members);
       
       // Load recent visits
       const visits = await visitHelpers.getVisitsWithDetails({
@@ -177,56 +172,20 @@ const HairstylistDashboard = () => {
       
     } catch (error) {
       console.error('Failed to load hairstylist data:', error);
-      toast.error('Failed to load dashboard data');
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const resetMemberForm = () => {
-    setMemberFormData({
-      fullName: '',
-      whatsapp: '',
-      instagram: '',
-      membershipTier: 'bronze',
-      personalNotes: ''
-    });
-  };
-
-  const handleMemberInputChange = (field: keyof MemberFormData, value: string | MembershipTier) => {
-    setMemberFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // In a real app, this would call an API to create the member
-      // For now, we'll simulate the process
-      console.log('Adding new member:', memberFormData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success(`${memberFormData.fullName} has been added as a new member and assigned to you.`);
-      
-      resetMemberForm();
-      setShowAddMemberDialog(false);
-      
-      // Reload data to show the new member
-      loadHairstylistData();
-    } catch (error) {
-      console.error('Failed to add member:', error);
-      toast.error('Failed to add member. Please try again.');
-    }
-  };
-
-  const handleAddMemberDialogClose = () => {
-    setShowAddMemberDialog(false);
-    resetMemberForm();
+  const handleAssignmentComplete = () => {
+    // Reload data after assignment
+    loadHairstylistData();
+    setShowAssignmentDialog(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -324,95 +283,13 @@ const HairstylistDashboard = () => {
             <Plus className="h-4 w-4 mr-2" />
             Record Visit
           </Button>
-          <Dialog open={showAddMemberDialog} onOpenChange={setShowAddMemberDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Member
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Add New Member</DialogTitle>
-                <DialogDescription>
-                  Add a new member that you interact with to your client list
-                </DialogDescription>
-              </DialogHeader>
-              
-              <form onSubmit={handleAddMember} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="memberFullName">Full Name *</Label>
-                  <Input
-                    id="memberFullName"
-                    placeholder="Enter member's full name"
-                    value={memberFormData.fullName}
-                    onChange={(e) => handleMemberInputChange('fullName', e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="memberWhatsapp">WhatsApp Number *</Label>
-                  <Input
-                    id="memberWhatsapp"
-                    placeholder="+6281234567890"
-                    value={memberFormData.whatsapp}
-                    onChange={(e) => handleMemberInputChange('whatsapp', e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="memberInstagram">Instagram Handle</Label>
-                  <Input
-                    id="memberInstagram"
-                    placeholder="@username"
-                    value={memberFormData.instagram}
-                    onChange={(e) => handleMemberInputChange('instagram', e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="membershipTier">Initial Membership Tier</Label>
-                  <Select 
-                    value={memberFormData.membershipTier} 
-                    onValueChange={(value: MembershipTier) => handleMemberInputChange('membershipTier', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select membership tier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bronze">Bronze</SelectItem>
-                      <SelectItem value="silver">Silver</SelectItem>
-                      <SelectItem value="gold">Gold</SelectItem>
-                      <SelectItem value="platinum">Platinum</SelectItem>
-                      <SelectItem value="diamond">Diamond</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="memberPersonalNotes">Personal Notes</Label>
-                  <Textarea
-                    id="memberPersonalNotes"
-                    placeholder="Add any personal notes about this member..."
-                    value={memberFormData.personalNotes}
-                    onChange={(e) => handleMemberInputChange('personalNotes', e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="flex gap-4">
-                  <Button type="submit" className="flex-1">
-                    Add Member
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleAddMemberDialogClose}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowAssignmentDialog(true)}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Assign Member
+          </Button>
         </div>
       </div>
 
@@ -556,6 +433,11 @@ const HairstylistDashboard = () => {
                             >
                               {MembershipCalculator.formatTierName(member.membership_tier)}
                             </Badge>
+                            {!member.user_profile?.is_active && (
+                              <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
+                                Pending
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -566,7 +448,7 @@ const HairstylistDashboard = () => {
                         </div>
                         <div>
                           <span>Points: </span>
-                          <span className="font-medium">{member.loyalty_points}</span>
+                          <span className="font-medium">{member.membership_points}</span>
                         </div>
                       </div>
                       
@@ -654,9 +536,9 @@ const HairstylistDashboard = () => {
                       </div>
                     </div>
                     
-                    {visit.visit_services && visit.visit_services.length > 0 && (
+                    {visit.services && visit.services.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {visit.visit_services.map((vs: any, index: number) => (
+                        {visit.services.map((vs, index: number) => (
                           <Badge key={index} variant="secondary">
                             {vs.service?.name || 'Unknown Service'}
                           </Badge>
@@ -737,6 +619,14 @@ const HairstylistDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Member Assignment Dialog */}
+      <MemberAssignmentDialog
+        open={showAssignmentDialog}
+        onOpenChange={setShowAssignmentDialog}
+        hairstylistId={user?.id || ''}
+        onAssignmentComplete={handleAssignmentComplete}
+      />
     </div>
   );
 };
