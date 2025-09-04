@@ -1248,6 +1248,108 @@ export const serviceHelpers = {
   }
 };
 
+// Photo management helpers  
+export const photoHelpers = {
+  // Upload photo to Supabase Storage
+  async uploadPhoto(file: File, visitId: string, photoType: 'before' | 'after'): Promise<{
+    filePath: string;
+    fileUrl: string;
+  }> {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${visitId}_${photoType}_${Date.now()}.${fileExt}`;
+      const filePath = `visits/${visitId}/${fileName}`;
+
+      console.log('📤 Uploading photo:', { fileName, filePath, fileSize: file.size });
+
+      const { data, error } = await supabaseAdmin.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('❌ Upload error:', error);
+        throw error;
+      }
+
+      console.log('✅ Upload successful:', data);
+
+      // Get public URL
+      const { data: urlData } = supabaseAdmin.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return {
+        filePath,
+        fileUrl: urlData.publicUrl
+      };
+    } catch (error) {
+      console.error('💥 Error uploading photo:', error);
+      throw error;
+    }
+  },
+
+  // Save photo record to database
+  async savePhotoRecord(
+    visitId: string,
+    filePath: string,
+    fileUrl: string,
+    photoType: 'before' | 'after',
+    uploadedBy: string,
+    description?: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabaseAdmin
+        .from('visit_photos')
+        .insert({
+          visit_id: visitId,
+          photo_type: photoType,
+          file_path: filePath,
+          file_url: fileUrl,
+          uploaded_by: uploadedBy,
+          description: description || null,
+          is_public: false
+        });
+
+      if (error) {
+        console.error('❌ Error saving photo record:', error);
+        throw error;
+      }
+
+      console.log('✅ Photo record saved successfully');
+    } catch (error) {
+      console.error('💥 Error saving photo record:', error);
+      throw error;
+    }
+  },
+
+  // Upload photo and save record (combined function)
+  async uploadAndSavePhoto(
+    file: File,
+    visitId: string,
+    photoType: 'before' | 'after',
+    uploadedBy: string,
+    description?: string
+  ): Promise<void> {
+    try {
+      console.log('🚀 Starting photo upload and save process...');
+      
+      // Upload to storage
+      const { filePath, fileUrl } = await this.uploadPhoto(file, visitId, photoType);
+      
+      // Save record to database
+      await this.savePhotoRecord(visitId, filePath, fileUrl, photoType, uploadedBy, description);
+      
+      console.log('✅ Photo upload and save completed successfully');
+    } catch (error) {
+      console.error('💥 Error in upload and save process:', error);
+      throw error;
+    }
+  }
+};
+
 // Error handling helper
 export const handleSupabaseError = (error: any): string => {
   if (error?.message) {

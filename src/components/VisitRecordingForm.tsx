@@ -24,7 +24,7 @@ import {
 import { ServiceManager } from '../lib/service-manager';
 import { serviceHelpers } from '../lib/supabase-helpers';
 import { MembershipCalculator } from '../lib/membership-calculator';
-import { memberHelpers, visitHelpers } from '../lib/supabase-helpers';
+import { memberHelpers, visitHelpers, photoHelpers } from '../lib/supabase-helpers';
 import { Member, Service, MembershipTier } from '../types';
 import { toast } from 'sonner';
 
@@ -221,13 +221,59 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         visit_date: new Date().toISOString()
       };
 
-      await visitHelpers.createVisit(visitData);
+      console.log('🚀 Creating visit with data:', visitData);
+      const newVisit = await visitHelpers.createVisit(visitData);
+      const visitId = newVisit.id;
+
+      console.log('✅ Visit created successfully, ID:', visitId);
+
+      // Upload photos if any
+      const photoUploadPromises: Promise<void>[] = [];
+
+      // Upload before photos
+      beforePhotos.forEach((photo, index) => {
+        if (photo.file) {
+          console.log(`📤 Uploading before photo ${index + 1}...`);
+          photoUploadPromises.push(
+            photoHelpers.uploadAndSavePhoto(
+              photo.file,
+              visitId,
+              'before',
+              hairstylistId,
+              `Before photo ${index + 1}`
+            )
+          );
+        }
+      });
+
+      // Upload after photos
+      afterPhotos.forEach((photo, index) => {
+        if (photo.file) {
+          console.log(`📤 Uploading after photo ${index + 1}...`);
+          photoUploadPromises.push(
+            photoHelpers.uploadAndSavePhoto(
+              photo.file,
+              visitId,
+              'after',
+              hairstylistId,
+              `After photo ${index + 1}`
+            )
+          );
+        }
+      });
+
+      // Wait for all photo uploads to complete
+      if (photoUploadPromises.length > 0) {
+        console.log(`📸 Uploading ${photoUploadPromises.length} photos...`);
+        await Promise.all(photoUploadPromises);
+        console.log('✅ All photos uploaded successfully!');
+      }
       
-      toast.success('Visit recorded successfully!');
+      toast.success(`Visit recorded successfully! ${photoUploadPromises.length > 0 ? `${photoUploadPromises.length} photos uploaded.` : ''}`);
       onVisitRecorded();
 
     } catch (error: any) {
-      console.error('Failed to record visit:', error);
+      console.error('💥 Failed to record visit:', error);
       toast.error('Failed to record visit: ' + error.message);
     } finally {
       setIsSubmitting(false);
