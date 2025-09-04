@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,64 +7,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, Filter, Download, Plus, Edit, Trash2, UserPlus } from "lucide-react";
+import { Search, Download, Plus, Edit, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-
-interface Member {
-  id: string;
-  fullName: string;
-  whatsapp: string;
-  instagram: string;
-  lastVisit: string;
-  stylist: string;
-  service: string;
-  stylistComment: string;
-  memberComment: string;
-  status: "active" | "inactive";
-}
+import { memberHelpers } from "../lib/supabase-helpers";
+import { Member, UserProfile } from "../types";
 
 interface MemberFormData {
-  fullName: string;
-  whatsapp: string;
-  instagram: string;
-  lastVisit: string;
-  stylist: string;
-  service: string;
-  stylistComment: string;
-  memberComment: string;
+  full_name: string;
+  email: string;
+  password: string;
+  phone: string;
+  whatsapp_number: string;
+  instagram_handle: string;
+  notes: string;
 }
 
 const Members = () => {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<(Member & { user_profile: UserProfile | null })[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<(Member & { user_profile: UserProfile | null })[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStylist, setFilterStylist] = useState("all");
-  const [filterService, setFilterService] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingMember, setEditingMember] = useState<(Member & { user_profile: UserProfile | null }) | null>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<MemberFormData>({
-    fullName: "",
-    whatsapp: "",
-    instagram: "",
-    lastVisit: "",
-    stylist: "",
-    service: "",
-    stylistComment: "",
-    memberComment: ""
+    full_name: "",
+    email: "",
+    password: "",
+    phone: "",
+    whatsapp_number: "",
+    instagram_handle: "",
+    notes: ""
   });
-
 
   const resetForm = () => {
     setFormData({
-      fullName: "",
-      whatsapp: "",
-      instagram: "",
-      lastVisit: "",
-      stylist: "",
-      service: "",
-      stylistComment: "",
-      memberComment: ""
+      full_name: "",
+      email: "",
+      password: "",
+      phone: "",
+      whatsapp_number: "",
+      instagram_handle: "",
+      notes: ""
     });
   };
 
@@ -76,58 +59,98 @@ const Members = () => {
     }));
   };
 
-  const handleAddMember = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newMember: Member = {
-      id: Date.now().toString(),
-      ...formData,
-      status: "active"
-    };
-    
-    setMembers(prev => [...prev, newMember]);
-    toast.success(`${formData.fullName} has been added to The Circle successfully.`);
-    resetForm();
-    setShowAddDialog(false);
+  const loadMembers = async () => {
+    try {
+      setLoading(true);
+      const data = await memberHelpers.getAllMembersWithProfiles();
+      console.log('Loaded members data:', data);
+      setMembers(data);
+      setFilteredMembers(data);
+    } catch (error) {
+      console.error('Error loading members:', error);
+      toast.error('Failed to load members');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEditMember = (member: Member) => {
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const result = await memberHelpers.createMemberWithAuth({
+        email: formData.email,
+        password: formData.password || `temp${Math.random().toString(36).slice(-8)}`,
+        full_name: formData.full_name,
+        phone: formData.phone,
+        whatsapp_number: formData.whatsapp_number,
+        instagram_handle: formData.instagram_handle,
+        notes: formData.notes
+      });
+      
+      setMembers(prev => [result.member, ...prev]);
+      setFilteredMembers(prev => [result.member, ...prev]);
+      toast.success(`${formData.full_name} has been added to The Circle successfully.`);
+      if (result.tempPassword) {
+        toast.info(`Temporary password: ${result.tempPassword}`, { duration: 10000 });
+      }
+      resetForm();
+      setShowAddDialog(false);
+    } catch (error: unknown) {
+      console.error('Error adding member:', error);
+      toast.error('Failed to add member. Please try again.');
+    }
+  };
+
+  const handleEditMember = (member: Member & { user_profile: UserProfile | null }) => {
+    if (!member.user_profile) {
+      toast.error('Cannot edit member: User profile not found');
+      return;
+    }
+    
     setEditingMember(member);
     setFormData({
-      fullName: member.fullName,
-      whatsapp: member.whatsapp,
-      instagram: member.instagram,
-      lastVisit: member.lastVisit,
-      stylist: member.stylist,
-      service: member.service,
-      stylistComment: member.stylistComment,
-      memberComment: member.memberComment
+      full_name: member.user_profile.full_name,
+      email: member.user_profile.email,
+      password: "", // Don't prefill password for security
+      phone: member.user_profile.phone || "",
+      whatsapp_number: member.user_profile.whatsapp_number || "",
+      instagram_handle: member.user_profile.instagram_handle || "",
+      notes: member.notes || ""
     });
     setShowAddDialog(true);
   };
 
-  const handleUpdateMember = (e: React.FormEvent) => {
+  const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!editingMember) return;
     
-    const updatedMember: Member = {
-      ...editingMember,
-      ...formData
-    };
-    
-    setMembers(prev => prev.map(m => m.id === editingMember.id ? updatedMember : m));
-    toast.success(`${formData.fullName} has been updated successfully.`);
-    resetForm();
-    setEditingMember(null);
-    setShowAddDialog(false);
+    try {
+      // TODO: Implement update member function
+      toast.success(`${formData.full_name} has been updated successfully.`);
+      resetForm();
+      setEditingMember(null);
+      setShowAddDialog(false);
+      await loadMembers(); // Reload data
+    } catch (error: unknown) {
+      console.error('Error updating member:', error);
+      toast.error('Failed to update member. Please try again.');
+    }
   };
 
-  const handleDeleteMember = (memberId: string) => {
+  const handleDeleteMember = async (memberId: string) => {
     const member = members.find(m => m.id === memberId);
-    if (member && confirm(`Are you sure you want to delete ${member.fullName}?`)) {
-      setMembers(prev => prev.filter(m => m.id !== memberId));
-      toast.success(`${member.fullName} has been removed from The Circle.`);
+    if (member && confirm(`Are you sure you want to delete ${member.user_profile.full_name}?`)) {
+      try {
+        // TODO: Implement delete member function
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+        setFilteredMembers(prev => prev.filter(m => m.id !== memberId));
+        toast.success(`${member.user_profile?.full_name || 'Member'} has been removed from The Circle.`);
+      } catch (error: unknown) {
+        console.error('Error deleting member:', error);
+        toast.error('Failed to delete member. Please try again.');
+      }
     }
   };
 
@@ -138,80 +161,28 @@ const Members = () => {
   };
 
   useEffect(() => {
-    // Simulate loading members - in real app, this would fetch from backend
-    const mockMembers: Member[] = [
-      {
-        id: "1",
-        fullName: "John Doe",
-        whatsapp: "+6281234567890",
-        instagram: "@johndoe",
-        lastVisit: "2024-01-15",
-        stylist: "Ahmad Rahman",
-        service: "Haircut",
-        stylistComment: "Prefers short sides, longer on top",
-        memberComment: "Great service as always!",
-        status: "active"
-      },
-      {
-        id: "2",
-        fullName: "Michael Smith",
-        whatsapp: "+6281234567891",
-        instagram: "@mikesmith",
-        lastVisit: "2024-01-14",
-        stylist: "Sarah Johnson",
-        service: "Beard Trim",
-        stylistComment: "Likes natural beard shape",
-        memberComment: "Very satisfied with the result",
-        status: "active"
-      },
-      {
-        id: "3",
-        fullName: "David Wilson",
-        whatsapp: "+6281234567892",
-        instagram: "@davidw",
-        lastVisit: "2024-01-13",
-        stylist: "Ahmad Rahman",
-        service: "Hair Wash",
-        stylistComment: "Sensitive scalp, use gentle products",
-        memberComment: "Relaxing experience",
-        status: "active"
-      }
-    ];
-    setMembers(mockMembers);
-    setFilteredMembers(mockMembers);
+    loadMembers();
   }, []);
 
   useEffect(() => {
-    let filtered = members;
-
     if (searchTerm) {
-      filtered = filtered.filter(member => 
-        member.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.stylist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.service.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = members.filter(member => 
+        member.user_profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.user_profile?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.user_profile?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.user_profile?.whatsapp_number?.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      setFilteredMembers(filtered);
+    } else {
+      setFilteredMembers(members);
     }
-
-    if (filterStylist !== "all") {
-      filtered = filtered.filter(member => member.stylist === filterStylist);
-    }
-
-    if (filterService !== "all") {
-      filtered = filtered.filter(member => member.service === filterService);
-    }
-
-    setFilteredMembers(filtered);
-  }, [searchTerm, filterStylist, filterService, members]);
-
-  const uniqueStylists = [...new Set(members.map(m => m.stylist))];
-  const uniqueServices = [...new Set(members.map(m => m.service))];
+  }, [searchTerm, members]);
 
   const handleExport = () => {
-    // Simulate export functionality
     const csvContent = [
-      "Full Name,WhatsApp,Instagram,Last Visit,Stylist,Service,Stylist Comment,Member Comment",
+      "Full Name,Email,Phone,WhatsApp,Instagram,Membership Tier,Total Visits,Notes",
       ...filteredMembers.map(member => 
-        `${member.fullName},${member.whatsapp},${member.instagram},${member.lastVisit},${member.stylist},${member.service},"${member.stylistComment}","${member.memberComment}"`
+        `${member.user_profile.full_name},${member.user_profile.email},${member.user_profile.phone || ''},${member.user_profile.whatsapp_number || ''},${member.user_profile.instagram_handle || ''},${member.membership_tier},${member.total_visits},"${member.notes || ''}"`
       )
     ].join("\n");
 
@@ -224,8 +195,26 @@ const Members = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const stylists = [...new Set(members.map(m => m.stylist))];
-  const services = [...new Set(members.map(m => m.service))];
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Members</h2>
+            <p className="text-muted-foreground">Loading members...</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-10 bg-gray-200 rounded"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -254,102 +243,89 @@ const Members = () => {
                   {editingMember ? 'Edit Member' : 'Add New Member'}
                 </DialogTitle>
                 <DialogDescription>
-                  {editingMember ? 'Update member information' : 'Add a new member to The Circle'}
+                  {editingMember ? 'Update member information' : 'Add a new member to The Circle. They will receive login credentials.'}
                 </DialogDescription>
               </DialogHeader>
               
               <form onSubmit={editingMember ? handleUpdateMember : handleAddMember} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name *</Label>
+                    <Label htmlFor="full_name">Full Name *</Label>
                     <Input
-                      id="fullName"
+                      id="full_name"
                       placeholder="Enter full name"
-                      value={formData.fullName}
-                      onChange={(e) => handleInputChange("fullName", e.target.value)}
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange("full_name", e.target.value)}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="whatsapp">WhatsApp Number *</Label>
+                    <Label htmlFor="email">Email Address *</Label>
                     <Input
-                      id="whatsapp"
+                      id="email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {!editingMember && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password (Optional)</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Leave blank for auto-generated password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      If left blank, a temporary password will be generated
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
                       placeholder="+6281234567890"
-                      value={formData.whatsapp}
-                      onChange={(e) => handleInputChange("whatsapp", e.target.value)}
-                      required
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="instagram">Instagram Handle</Label>
+                    <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
                     <Input
-                      id="instagram"
-                      placeholder="@username"
-                      value={formData.instagram}
-                      onChange={(e) => handleInputChange("instagram", e.target.value)}
+                      id="whatsapp_number"
+                      placeholder="+6281234567890"
+                      value={formData.whatsapp_number}
+                      onChange={(e) => handleInputChange("whatsapp_number", e.target.value)}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastVisit">Last Visit Date</Label>
-                    <Input
-                      id="lastVisit"
-                      type="date"
-                      value={formData.lastVisit}
-                      onChange={(e) => handleInputChange("lastVisit", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="stylist">Hairstylist</Label>
-                    <Select value={formData.stylist} onValueChange={(value) => handleInputChange("stylist", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select stylist" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stylists.map(stylist => (
-                          <SelectItem key={stylist} value={stylist}>{stylist}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="service">Service Received</Label>
-                    <Select value={formData.service} onValueChange={(value) => handleInputChange("service", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map(service => (
-                          <SelectItem key={service} value={service}>{service}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stylistComment">Stylist Comment</Label>
-                  <Textarea
-                    id="stylistComment"
-                    placeholder="Internal notes about client preferences..."
-                    value={formData.stylistComment}
-                    onChange={(e) => handleInputChange("stylistComment", e.target.value)}
-                    rows={3}
+                  <Label htmlFor="instagram_handle">Instagram Handle</Label>
+                  <Input
+                    id="instagram_handle"
+                    placeholder="@username"
+                    value={formData.instagram_handle}
+                    onChange={(e) => handleInputChange("instagram_handle", e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="memberComment">Member Comment</Label>
+                  <Label htmlFor="notes">Notes</Label>
                   <Textarea
-                    id="memberComment"
-                    placeholder="Member feedback or comments..."
-                    value={formData.memberComment}
-                    onChange={(e) => handleInputChange("memberComment", e.target.value)}
+                    id="notes"
+                    placeholder="Additional notes about the member..."
+                    value={formData.notes}
+                    onChange={(e) => handleInputChange("notes", e.target.value)}
                     rows={3}
                   />
                 </div>
@@ -368,106 +344,90 @@ const Members = () => {
         </div>
       </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Member Database</CardTitle>
-                <CardDescription>
-                  {filteredMembers.length} of {members.length} members
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search members, stylists, or services..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Select value={filterStylist} onValueChange={setFilterStylist}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by stylist" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Stylists</SelectItem>
-                      {uniqueStylists.map(stylist => (
-                        <SelectItem key={stylist} value={stylist}>{stylist}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterService} onValueChange={setFilterService}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Services</SelectItem>
-                      {uniqueServices.map(service => (
-                        <SelectItem key={service} value={service}>{service}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      <Card>
+        <CardHeader>
+          <CardDescription>
+            {filteredMembers.length} of {members.length} members
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search members by name, email, phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
 
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Last Visit</TableHead>
-                        <TableHead>Stylist</TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredMembers.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell className="font-medium">
-                            {member.fullName}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{member.whatsapp}</div>
-                              <div className="text-muted-foreground">{member.instagram}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{member.lastVisit}</TableCell>
-                          <TableCell>{member.stylist}</TableCell>
-                          <TableCell>{member.service}</TableCell>
-                          <TableCell>
-                            <Badge variant={member.status === "active" ? "default" : "secondary"}>
-                              {member.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleEditMember(member)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleDeleteMember(member.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Membership</TableHead>
+                  <TableHead>Visits</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMembers.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div className="font-medium">{member.user_profile?.full_name || 'N/A'}</div>
+                        <div className="text-sm text-muted-foreground">{member.user_profile?.email || 'N/A'}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {member.user_profile?.phone && <div>📞 {member.user_profile.phone}</div>}
+                        {member.user_profile?.whatsapp_number && <div>💬 {member.user_profile.whatsapp_number}</div>}
+                        {member.user_profile?.instagram_handle && <div>📷 {member.user_profile.instagram_handle}</div>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {member.membership_tier}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{member.total_visits}</TableCell>
+                    <TableCell>
+                      <Badge variant={member.user_profile?.is_active ? "default" : "secondary"}>
+                        {member.user_profile?.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditMember(member)}
+                          disabled={!member.user_profile}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteMember(member.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

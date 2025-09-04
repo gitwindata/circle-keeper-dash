@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, Mail, Lock, Scissors, Users, Crown } from 'lucide-react';
+import { Eye, EyeOff, Scissors } from 'lucide-react';
 import { toast } from 'sonner';
 import QuickProfileFix from '../components/QuickProfileFix';
 
@@ -16,7 +15,6 @@ const UnifiedLogin = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'hairstylist' | 'member'>('member');
   const { signIn, userProfile, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -75,7 +73,7 @@ const UnifiedLogin = () => {
       
       // Don't navigate here, let the useEffect handle redirection
       // after the auth state is properly updated
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Login error:', error);
       setLoading(false); // Reset loading state on error
       // Error toast is already shown in the signIn function
@@ -84,172 +82,121 @@ const UnifiedLogin = () => {
     // Let the useEffect handle the navigation and state cleanup
   };
 
-  const roleInfo = {
-    member: {
-      icon: Crown,
-      title: 'Member Login',
-      description: 'Access your profile, visit history, and membership benefits',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
-    },
-    hairstylist: {
-      icon: Scissors,
-      title: 'Hairstylist Login',
-      description: 'Manage your clients, record visits, and track your performance',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    },
-    admin: {
-      icon: Users,
-      title: 'Admin Login',
-      description: 'Full system access for managing members, hairstylists, and business operations',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200'
-    }
-  };
-
-  const currentRole = roleInfo[selectedRole];
-  const IconComponent = currentRole.icon;
-
   return (
     <>
       <QuickProfileFix />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-12 w-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-              <Scissors className="h-6 w-6 text-white" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Circle Keeper Dashboard</h1>
-          <p className="text-gray-600">Haijoel Men's Salon Management System</p>
-        </div>
-
-        {/* Role Selection Tabs */}
-        <Tabs value={selectedRole} onValueChange={(value) => setSelectedRole(value as any)} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="member" className="text-xs">
-              <Crown className="h-4 w-4 mr-1" />
-              Member
-            </TabsTrigger>
-            <TabsTrigger value="hairstylist" className="text-xs">
-              <Scissors className="h-4 w-4 mr-1" />
-              Hairstylist
-            </TabsTrigger>
-            <TabsTrigger value="admin" className="text-xs">
-              <Users className="h-4 w-4 mr-1" />
-              Admin
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={selectedRole} className="mt-4">
-            <Card className={`${currentRole.bgColor} ${currentRole.borderColor} border-2`}>
-              <CardHeader className="text-center pb-4">
-                <div className="flex justify-center mb-2">
-                  <IconComponent className={`h-8 w-8 ${currentRole.color}`} />
-                </div>
-                <CardTitle className={`${currentRole.color} text-lg`}>
-                  {currentRole.title}
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  {currentRole.description}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Login Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center">Sign In</CardTitle>
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="border-0 shadow-lg bg-white">
+            <CardHeader className="space-y-6 text-center pt-8 pb-6">
+              {/* Logo */}
+              <div className="flex justify-center">
+                <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <Scissors className="w-6 h-6 text-white" />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <CardTitle className="text-2xl font-semibold text-gray-900">
+                  Welcome back
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Sign in to your Circle Keeper account
+                </CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent className="px-8 pb-8">
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                    Email address
+                  </Label>
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-11"
+                    placeholder="Enter your email"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 pr-10"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg shadow-sm" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Signing in...
+                    </div>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+              </form>
+
+              {/* Demo Credentials */}
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Demo Accounts</h4>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    <div><strong>Admin:</strong> admin@haijoel.com / admin123</div>
+                    <div><strong>Hairstylist:</strong> stylist@haijoel.com / stylist123</div>
+                    <div><strong>Member:</strong> member@haijoel.com / member123</div>
+                  </div>
                 </div>
               </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 pt-6 border-t">
-              <Alert>
-                <AlertDescription className="text-xs">
-                  <strong>Demo Credentials:</strong><br />
-                  Admin: admin@haijoel.com / admin123<br />
-                  Hairstylist: stylist@haijoel.com / stylist123<br />
-                  Member: member@haijoel.com / member123
-                </AlertDescription>
-              </Alert>
-            </div>
-
-            {/* Footer Links */}
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <Link to="/" className="hover:text-gray-900">
-                ← Back to Home
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-xs text-gray-500">
-          <p>© 2024 Haijoel Men's Salon. All rights reserved.</p>
-          <p className="mt-1">Need help? Contact support</p>
+              
+              <div className="text-center mt-6">
+                <p className="text-sm text-gray-500">
+                  Haijoel Men's Salon Management System
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Footer */}
+          <div className="mt-8 text-center">
+            <p className="text-xs text-gray-400">
+              © 2024 Circle Keeper. All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 };

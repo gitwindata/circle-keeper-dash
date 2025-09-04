@@ -32,19 +32,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ menuItems, userRole }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-gray-50">
         <AppSidebar menuItems={menuItems} onLogout={handleLogout} userRole={userRole} />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
-            <SidebarTrigger className="-ml-1" />
-            <div className="flex items-center gap-2">
-              <img src="/hms logo white.svg" alt="HMS Logo" className="h-5 w-5" />
-              <h1 className="text-xl font-semibold">{userRole === "admin" ? "HMS Admin Dashboard" : "HMS Hairstylist Dashboard"}</h1>
+        <SidebarInset className="bg-gray-50">
+          <header className="flex h-16 shrink-0 items-center gap-4 px-6 bg-white border-b border-gray-200">
+            <SidebarTrigger className="text-gray-600 hover:text-gray-900" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">C</span>
+              </div>
+              <h1 className="text-lg font-medium text-gray-900">
+                {userRole === "admin" ? "Admin Dashboard" : "Hairstylist Dashboard"}
+              </h1>
             </div>
           </header>
           
-          <div className="flex-1 p-6 space-y-6">
-            <Outlet /> {/* This is where nested routes will render */}
+          <div className="flex-1 bg-gray-50">
+            <main className="p-6">
+              <Outlet />
+            </main>
           </div>
         </SidebarInset>
       </div>

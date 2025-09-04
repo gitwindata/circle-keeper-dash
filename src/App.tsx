@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth";
 import ProtectedRoute, { AdminRoute, HairstylistRoute, MemberRoute } from "./components/ProtectedRoute";
 import RoleBasedRedirect from "./components/RoleBasedRedirect";
+import { useEffect } from "react";
 
 // Pages
 import Index from "./pages/Index";
@@ -34,14 +35,21 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
+const App = () => {
+  // Force light mode
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    document.body.className = 'bg-gray-50 text-gray-900';
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
             {/* Public routes */}
             <Route path="/" element={<CircleLanding />} />
             <Route path="/login" element={<UnifiedLogin />} />
@@ -111,6 +119,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

@@ -1,5 +1,27 @@
-import { supabase } from './supabase';
-import { UserProfile, UserRole, Member, Hairstylist } from '../types';
+import { supabase, supabaseAdmin } from './supabase';
+import { Member, UserProfile, Hairstylist, Visit, UserRole } from '../types';
+
+// Helper to get appropriate client based on user role
+const getSupabaseClient = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    
+    // If user is admin and we have service role key, use admin client
+    if (profile?.role === 'admin' && supabaseAdmin) {
+      console.log('🔑 Using admin client (bypasses RLS)');
+      return supabaseAdmin;
+    }
+  }
+  
+  console.log('👤 Using regular client (RLS enforced)');
+  return supabase;
+};
 
 // Auth helper functions
 export const authHelpers = {
@@ -93,6 +115,314 @@ export const authHelpers = {
 
 // Member management helpers
 export const memberHelpers = {
+    async getAllMembersWithProfiles(): Promise<(Member & { user_profile: UserProfile })[]> {
+    console.log('🔍 Debug: Fetching all members with profiles...');
+    
+    // Get appropriate client (admin client for admin users)
+    const client = await getSupabaseClient();
+    
+    // Check specific member ID and its user_profile
+    const testMemberId = 'fe277989-0042-4791-8ed6-4a1f2461e924';
+    
+    const { data: specificProfile } = await client
+      .from('user_profiles')
+      .select('*')
+      .eq('id', testMemberId);
+    
+    console.log(`👤 Debug: User profile for member ${testMemberId}:`, JSON.stringify(specificProfile, null, 2));
+    
+    // Check all user_profiles
+    const { data: allProfiles } = await client
+      .from('user_profiles')
+      .select('*');
+    
+    console.log('📋 Debug: All user profiles:', JSON.stringify(allProfiles, null, 2));
+    
+    // Since members.id references user_profiles.id, we join with foreign key
+    const { data, error } = await client
+      .from('members')
+      .select(`
+        *,
+        user_profile:user_profiles(*)
+      `)
+      .order('id', { ascending: false });
+
+    console.log('� Debug: Join query data:', JSON.stringify(data, null, 2));
+    console.log('❌ Debug: Join query error:', error);
+
+    if (error) {
+      console.error('Error fetching members:', error);
+      // If the named foreign key doesn't work, try explicit join
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('members')
+        .select(`
+          *,
+          user_profile:user_profiles(*)
+        `)
+        .eq('user_profiles.id', 'members.id')
+        .order('id', { ascending: false });
+        
+      console.log('🔄 Fallback query data:', fallbackData);
+      if (fallbackError) {
+        console.error('Fallback query error:', fallbackError);
+        throw fallbackError;
+      }
+      return fallbackData || [];
+    }
+
+    // Transform the data - user_profile should be object, not array
+    const transformedData = data?.map(member => ({
+      ...member,
+      user_profile: member.user_profile || null
+    })) || [];
+
+    console.log('🔄 Transformed data:', JSON.stringify(transformedData, null, 2));
+    return transformedData.filter(item => item.user_profile !== null);
+  },
+
+  // Create complete member with auth account
+  async createMemberWithAuth(memberData: {
+    email: string;
+    password: string;
+    full_name: string;
+    phone?: string;
+    whatsapp_number?: string;
+    instagram_handle?: string;
+    notes?: string;
+    preferred_services?: string[];
+  }): Promise<{ member: Member & { user_profile: UserProfile }, tempPassword: string }> {
+    try {
+      // Step 1: Create auth user
+      const tempPassword = memberData.password || `temp${Math.random().toString(36).slice(-8)}`;
+      
+      let authUser;
+      let userId;
+
+      if (supabaseAdmin) {
+        // Use admin client to create user directly
+        console.log('🔑 Creating user with admin client...');
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+          email: memberData.email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: memberData.full_name,
+            role: 'member'
+          }
+        });
+
+        if (error) {
+          console.error('Admin user creation error:', error);
+          throw new Error(`Failed to create user account: ${error.message}`);
+        }
+
+        authUser = data;
+        userId = data.user?.id;
+      } else {
+        // Fallback: Use regular signup (user will need to confirm email)
+        console.log('👤 Creating user with regular signup...');
+        const { data, error } = await supabase.auth.signUp({
+          email: memberData.email,
+          password: tempPassword,
+          options: {
+            data: {
+              full_name: memberData.full_name,
+              role: 'member'
+            }
+          }
+        });
+
+        if (error) {
+          console.error('Regular signup error:', error);
+          throw new Error(`Failed to create user account: ${error.message}`);
+        }
+
+        authUser = data;
+        userId = data.user?.id;
+      }
+
+      if (!userId) {
+        throw new Error('Failed to create user account - no user ID returned');
+      }
+
+      // Get appropriate client for subsequent operations
+      const client = await getSupabaseClient();
+
+      // Step 2: Create user profile
+      const { data: userProfile, error: profileError } = await client
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: memberData.email,
+          full_name: memberData.full_name,
+          phone: memberData.phone,
+          whatsapp_number: memberData.whatsapp_number,
+          instagram_handle: memberData.instagram_handle,
+          role: 'member' as const,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // Cleanup: delete auth user if profile creation fails
+        if (supabaseAdmin) {
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        }
+        throw new Error(`Failed to create user profile: ${profileError.message}`);
+      }
+
+      // Step 3: Create member record
+      const { data: member, error: memberError } = await client
+        .from('members')
+        .insert({
+          id: userId,
+          notes: memberData.notes,
+          preferred_services: memberData.preferred_services || [],
+          membership_tier: 'bronze' as const,
+          membership_points: 0,
+          total_visits: 0,
+          total_spent: 0
+        })
+        .select()
+        .single();
+
+      if (memberError) {
+        console.error('Member creation error:', memberError);
+        // Cleanup: delete auth user and profile if member creation fails
+        if (supabaseAdmin) {
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        }
+        await client.from('user_profiles').delete().eq('id', userId);
+        throw new Error(`Failed to create member record: ${memberError.message}`);
+      }
+
+      return {
+        member: {
+          ...member,
+          user_profile: userProfile
+        },
+        tempPassword
+      };
+    } catch (error) {
+      console.error('Complete member creation failed:', error);
+      throw error;
+    }
+  },
+
+  // Create new member (simplified approach)
+  async createMember(memberData: {
+    full_name: string;
+    email: string;
+    phone?: string;
+    whatsapp_number?: string;
+    instagram_handle?: string;
+    notes?: string;
+    preferred_services?: string[];
+  }): Promise<Member & { user_profile: UserProfile }> {
+    // Generate UUID for new member
+    const memberId = crypto.randomUUID();
+
+    // Create user profile
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        id: memberId,
+        email: memberData.email,
+        full_name: memberData.full_name,
+        phone: memberData.phone,
+        whatsapp_number: memberData.whatsapp_number,
+        instagram_handle: memberData.instagram_handle,
+        role: 'member' as const,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      throw profileError;
+    }
+
+    // Create member record
+    const { data: member, error: memberError } = await supabase
+      .from('members')
+      .insert({
+        id: memberId,
+        notes: memberData.notes,
+        preferred_services: memberData.preferred_services || [],
+        membership_tier: 'bronze' as const,
+        membership_points: 0,
+        total_visits: 0,
+        total_spent: 0
+      })
+      .select()
+      .single();
+
+    if (memberError) {
+      console.error('Member creation error:', memberError);
+      throw memberError;
+    }
+
+    return {
+      ...member,
+      user_profile: userProfile
+    };
+  },
+
+  // Update member and profile
+  async updateMember(
+    memberId: string,
+    updates: {
+      full_name?: string;
+      phone?: string;
+      whatsapp_number?: string;
+      instagram_handle?: string;
+      notes?: string;
+      preferred_services?: string[];
+    }
+  ): Promise<void> {
+    // Update user profile
+    const profileUpdates = {
+      full_name: updates.full_name,
+      phone: updates.phone,
+      whatsapp_number: updates.whatsapp_number,
+      instagram_handle: updates.instagram_handle
+    };
+
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update(profileUpdates)
+      .eq('id', memberId);
+
+    if (profileError) throw profileError;
+
+    // Update member record
+    const memberUpdates = {
+      notes: updates.notes,
+      preferred_services: updates.preferred_services
+    };
+
+    const { error: memberError } = await supabase
+      .from('members')
+      .update(memberUpdates)
+      .eq('id', memberId);
+
+    if (memberError) throw memberError;
+  },
+
+  // Delete member
+  async deleteMember(memberId: string): Promise<void> {
+    // Delete member record (this will cascade to user_profiles due to FK)
+    const { error } = await supabase
+      .from('user_profiles')
+      .delete()
+      .eq('id', memberId);
+
+    if (error) throw error;
+  },
+
   // Get member with profile data by user auth ID
   async getMemberWithProfile(userId: string): Promise<(Member & { user_profile: UserProfile }) | null> {
     // First try to find member record that corresponds to this user
@@ -125,26 +455,14 @@ export const memberHelpers = {
         role: data.role,
         full_name: data.full_name,
         phone: data.phone,
+        whatsapp_number: data.whatsapp_number,
+        instagram_handle: data.instagram_handle,
         avatar_url: data.avatar_url,
         is_active: data.is_active,
         created_at: data.created_at,
         updated_at: data.updated_at
       }
     };
-  },
-
-  // Get all members with profiles
-  async getAllMembersWithProfiles(): Promise<(Member & { user_profile: UserProfile })[]> {
-    const { data, error } = await supabase
-      .from('members')
-      .select(`
-        *,
-        user_profile:user_profiles(*)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
   },
 
   // Update member stats
@@ -209,17 +527,189 @@ export const hairstylistHelpers = {
 
   // Get all hairstylists with profiles
   async getAllHairstylistsWithProfiles(): Promise<(Hairstylist & { user_profile: UserProfile })[]> {
-    const { data, error } = await supabase
+    const client = await getSupabaseClient();
+    const { data, error } = await client
       .from('hairstylists')
+      .select(`
+        *,
+        user_profile:user_profiles!inner(*)
+      `);
+
+    if (error) throw error;
+    
+    // Sort on the client side to avoid Supabase cross-table sorting issues
+    const sortedData = (data || []).sort((a, b) => {
+      const nameA = a.user_profile?.full_name || '';
+      const nameB = b.user_profile?.full_name || '';
+      return nameA.localeCompare(nameB);
+    });
+    
+    return sortedData;
+  },
+
+  // Create a new hairstylist with auth user
+  async createHairstylistWithAuth(hairstylistData: {
+    email: string;
+    full_name: string;
+    phone: string;
+    specialties: string[];
+    experience_years: number;
+    schedule_notes?: string;
+    status: 'active' | 'inactive';
+  }) {
+    try {
+      const adminClient = await getSupabaseClient();
+      
+      // Create auth user
+      const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+        email: hairstylistData.email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: hairstylistData.full_name,
+          phone: hairstylistData.phone,
+          role: 'hairstylist'
+        }
+      });
+
+      if (authError) throw authError;
+      
+      // Create user profile
+      const { data: userProfile, error: profileError } = await adminClient
+        .from('user_profiles')
+        .insert({
+          id: authUser.user.id,
+          email: hairstylistData.email,
+          full_name: hairstylistData.full_name,
+          phone: hairstylistData.phone,
+          role: 'hairstylist',
+          is_active: hairstylistData.status === 'active'
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        // Cleanup auth user on profile creation failure
+        await adminClient.auth.admin.deleteUser(authUser.user.id);
+        throw profileError;
+      }
+
+      // Create hairstylist record
+      const { data: hairstylist, error: hairstylistError } = await adminClient
+        .from('hairstylists')
+        .insert({
+          id: authUser.user.id,
+          specialties: hairstylistData.specialties,
+          experience_years: hairstylistData.experience_years,
+          schedule_notes: hairstylistData.schedule_notes || '',
+          commission_rate: 50.0 // Default commission rate
+        })
+        .select()
+        .single();
+
+      if (hairstylistError) {
+        // Cleanup auth user and profile on hairstylist creation failure
+        await adminClient
+          .from('user_profiles')
+          .delete()
+          .eq('id', authUser.user.id);
+        await adminClient.auth.admin.deleteUser(authUser.user.id);
+        throw hairstylistError;
+      }
+
+      return {
+        ...hairstylist,
+        user_profile: userProfile
+      };
+    } catch (error) {
+      console.error('Error creating hairstylist with auth:', error);
+      throw error;
+    }
+  },
+
+  // Update hairstylist
+  async updateHairstylist(id: string, updateData: {
+    full_name?: string;
+    phone?: string;
+    specialties?: string[];
+    experience_years?: number;
+    schedule_notes?: string;
+    status?: 'active' | 'inactive';
+  }) {
+    const client = await getSupabaseClient();
+    
+    // Update user profile if profile data is provided
+    if (updateData.full_name || updateData.phone || updateData.status !== undefined) {
+      const profileUpdate: Record<string, unknown> = {};
+      if (updateData.full_name) profileUpdate.full_name = updateData.full_name;
+      if (updateData.phone) profileUpdate.phone = updateData.phone;
+      if (updateData.status !== undefined) profileUpdate.is_active = updateData.status === 'active';
+
+      const { error: profileError } = await client
+        .from('user_profiles')
+        .update(profileUpdate)
+        .eq('id', id);
+
+      if (profileError) throw profileError;
+    }
+
+    // Update hairstylist record
+    const hairstylistUpdate: Record<string, unknown> = {};
+    if (updateData.specialties) hairstylistUpdate.specialties = updateData.specialties;
+    if (updateData.experience_years !== undefined) hairstylistUpdate.experience_years = updateData.experience_years;
+    if (updateData.schedule_notes !== undefined) hairstylistUpdate.schedule_notes = updateData.schedule_notes;
+
+    const { data, error } = await client
+      .from('hairstylists')
+      .update(hairstylistUpdate)
+      .eq('id', id)
       .select(`
         *,
         user_profile:user_profiles(*)
       `)
-      .eq('user_profile.is_active', true)
-      .order('user_profile.full_name');
+      .single();
 
     if (error) throw error;
-    return data || [];
+    return data;
+  },
+
+  // Deactivate hairstylist (soft delete)
+  async deactivateHairstylist(id: string) {
+    const client = await getSupabaseClient();
+    
+    // Update both user profile and hairstylist status
+    const { error: profileError } = await client
+      .from('user_profiles')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    const { error: hairstylistError } = await client
+      .from('hairstylists')
+      .update({ status: 'inactive' })
+      .eq('id', id);
+
+    if (hairstylistError) throw hairstylistError;
+  },
+
+  // Activate hairstylist
+  async activateHairstylist(id: string) {
+    const client = await getSupabaseClient();
+    
+    // Update both user profile and hairstylist status
+    const { error: profileError } = await client
+      .from('user_profiles')
+      .update({ is_active: true })
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    const { error: hairstylistError } = await client
+      .from('hairstylists')
+      .update({ status: 'active' })
+      .eq('id', id);
+
+    if (hairstylistError) throw hairstylistError;
   },
 
   // Get hairstylist's assigned members

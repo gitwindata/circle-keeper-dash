@@ -21,131 +21,92 @@ import {
   Calendar,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { hairstylistHelpers } from "@/lib/supabase-helpers";
+import { handleSupabaseError } from "@/lib/supabase-helpers";
+import type { Hairstylist, UserProfile } from "@/types";
 
-interface Hairstylist {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  specialties: string[];
-  experience: number; // years
-  joinDate: string;
-  address: string;
-  status: "active" | "inactive";
-  avatar: string;
-  totalClients: number;
-  monthlyClients: number;
-  rating: number;
-  bio: string;
+// Extended hairstylist type for UI purposes
+interface HairstylistWithProfile extends Hairstylist {
+  user_profile: UserProfile;
 }
 
 const Hairstylists = () => {
   const { toast } = useToast();
-  const [hairstylists, setHairstylists] = useState<Hairstylist[]>([]);
-  const [filteredHairstylists, setFilteredHairstylists] = useState<Hairstylist[]>([]);
+  const [hairstylists, setHairstylists] = useState<HairstylistWithProfile[]>([]);
+  const [filteredHairstylists, setFilteredHairstylists] = useState<HairstylistWithProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterSpecialty, setFilterSpecialty] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
   
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
-  const [selectedHairstylist, setSelectedHairstylist] = useState<Hairstylist | null>(null);
+  const [selectedHairstylist, setSelectedHairstylist] = useState<HairstylistWithProfile | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form states
   const [newHairstylist, setNewHairstylist] = useState({
-    fullName: "",
+    full_name: "",
     email: "",
     phone: "",
     specialties: "",
-    experience: 0,
-    address: "",
+    experience_years: 0,
     bio: ""
   });
 
   const [editHairstylist, setEditHairstylist] = useState({
-    fullName: "",
+    full_name: "",
     email: "",
     phone: "",
     specialties: "",
-    experience: 0,
-    address: "",
+    experience_years: 0,
     bio: ""
   });
 
+  // Load hairstylists data
+  const loadHairstylists = async () => {
+    try {
+      setIsLoading(true);
+      const data = await hairstylistHelpers.getAllHairstylistsWithProfiles();
+      setHairstylists(data);
+      setFilteredHairstylists(data);
+    } catch (error) {
+      console.error('Error loading hairstylists:', error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Simulate loading stylists data
-    const mockHairstylists: Hairstylist[] = [
-      {
-        id: "1",
-        fullName: "Ahmad Rahman",
-        email: "ahmad.rahman@hms.com",
-        phone: "+6281234567890",
-        specialties: ["Haircut", "Beard Trim", "Hair Styling"],
-        experience: 5,
-        joinDate: "2019-03-15",
-        address: "Jakarta Selatan",
-        status: "active",
-        avatar: "/api/placeholder/40/40",
-        totalClients: 156,
-        monthlyClients: 23,
-        rating: 4.8,
-        bio: "Experienced hairstylist specializing in modern cuts and beard styling."
-      },
-      {
-        id: "2",
-        fullName: "Sarah Johnson",
-        email: "sarah.johnson@hms.com",
-        phone: "+6281234567891",
-        specialties: ["Hair Coloring", "Perming", "Hair Treatment"],
-        experience: 8,
-        joinDate: "2016-07-22",
-        address: "Jakarta Pusat",
-        status: "active",
-        avatar: "/api/placeholder/40/40",
-        totalClients: 203,
-        monthlyClients: 31,
-        rating: 4.9,
-        bio: "Color specialist with expertise in advanced coloring techniques."
-      },
-      {
-        id: "3",
-        fullName: "Michael Brown",
-        email: "michael.brown@hms.com",
-        phone: "+6281234567892",
-        specialties: ["Haircut", "Hair Wash", "Scalp Treatment"],
-        experience: 3,
-        joinDate: "2021-11-10",
-        address: "Jakarta Barat",
-        status: "inactive",
-        avatar: "/api/placeholder/40/40",
-        totalClients: 89,
-        monthlyClients: 0,
-        rating: 4.5,
-        bio: "Junior stylist focusing on precision cuts and scalp health."
-      }
-    ];
-    setHairstylists(mockHairstylists);
-    setFilteredHairstylists(mockHairstylists);
-  }, []);
+    loadHairstylists();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let filtered = hairstylists;
 
     if (searchTerm) {
       filtered = filtered.filter(hairstylist => 
-        hairstylist.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        hairstylist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hairstylist.user_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hairstylist.user_profile.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         hairstylist.specialties.some(specialty => specialty.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     if (filterStatus !== "all") {
-      filtered = filtered.filter(hairstylist => hairstylist.status === filterStatus);
+      filtered = filtered.filter(hairstylist => 
+        filterStatus === "active" ? hairstylist.user_profile.is_active : !hairstylist.user_profile.is_active
+      );
     }
 
     if (filterSpecialty !== "all") {
@@ -155,97 +116,169 @@ const Hairstylists = () => {
     setFilteredHairstylists(filtered);
   }, [searchTerm, filterStatus, filterSpecialty, hairstylists]);
 
-  const handleAddHairstylist = () => {
-    const hairstylistData: Hairstylist = {
-      id: Date.now().toString(),
-      ...newHairstylist,
-      specialties: newHairstylist.specialties.split(",").map(s => s.trim()),
-      joinDate: new Date().toISOString().split('T')[0],
-      status: "active",
-      avatar: "/api/placeholder/40/40",
-      totalClients: 0,
-      monthlyClients: 0,
-      rating: 0
-    };
+  const handleAddHairstylist = async () => {
+    if (!newHairstylist.full_name || !newHairstylist.email || !newHairstylist.phone) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setHairstylists(prev => [...prev, hairstylistData]);
-    setIsAddDialogOpen(false);
-    setNewHairstylist({
-      fullName: "",
-      email: "",
-      phone: "",
-      specialties: "",
-      experience: 0,
-      address: "",
-      bio: ""
-    });
+    try {
+      setIsSubmitting(true);
+      const specialtiesArray = newHairstylist.specialties
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
 
-    toast({
-      title: "Hairstylist Added",
-      description: `${newHairstylist.fullName} has been added successfully.`,
-    });
+      await hairstylistHelpers.createHairstylistWithAuth({
+        email: newHairstylist.email,
+        full_name: newHairstylist.full_name,
+        phone: newHairstylist.phone,
+        specialties: specialtiesArray,
+        experience_years: newHairstylist.experience_years,
+        schedule_notes: newHairstylist.bio,
+        status: 'active'
+      });
+
+      setIsAddDialogOpen(false);
+      setNewHairstylist({
+        full_name: "",
+        email: "",
+        phone: "",
+        specialties: "",
+        experience_years: 0,
+        bio: ""
+      });
+
+      toast({
+        title: "Success",
+        description: `${newHairstylist.full_name} has been added successfully.`,
+      });
+
+      // Reload data
+      await loadHairstylists();
+    } catch (error) {
+      console.error('Error adding hairstylist:', error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditHairstylist = () => {
-    if (!selectedHairstylist) return;
+  const handleEditHairstylist = async () => {
+    if (!selectedHairstylist || !editHairstylist.full_name || !editHairstylist.phone) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    const updatedHairstylist: Hairstylist = {
-      ...selectedHairstylist,
-      ...editHairstylist,
-      specialties: editHairstylist.specialties.split(",").map(s => s.trim())
-    };
+    try {
+      setIsSubmitting(true);
+      const specialtiesArray = editHairstylist.specialties
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
 
-    setHairstylists(prev => prev.map(h => 
-      h.id === selectedHairstylist.id ? updatedHairstylist : h
-    ));
-    
-    setIsEditDialogOpen(false);
-    setSelectedHairstylist(null);
-    
-    toast({
-      title: "Hairstylist Updated",
-      description: `${editHairstylist.fullName} has been updated successfully.`,
-    });
+      await hairstylistHelpers.updateHairstylist(selectedHairstylist.id, {
+        full_name: editHairstylist.full_name,
+        phone: editHairstylist.phone,
+        specialties: specialtiesArray,
+        experience_years: editHairstylist.experience_years,
+        schedule_notes: editHairstylist.bio
+      });
+
+      setIsEditDialogOpen(false);
+      setSelectedHairstylist(null);
+      
+      toast({
+        title: "Success",
+        description: `${editHairstylist.full_name} has been updated successfully.`,
+      });
+
+      // Reload data
+      await loadHairstylists();
+    } catch (error) {
+      console.error('Error updating hairstylist:', error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const openEditDialog = (hairstylist: Hairstylist) => {
+  const openEditDialog = (hairstylist: HairstylistWithProfile) => {
     setSelectedHairstylist(hairstylist);
     setEditHairstylist({
-      fullName: hairstylist.fullName,
-      email: hairstylist.email,
-      phone: hairstylist.phone,
+      full_name: hairstylist.user_profile.full_name,
+      email: hairstylist.user_profile.email,
+      phone: hairstylist.user_profile.phone || "",
       specialties: hairstylist.specialties.join(", "),
-      experience: hairstylist.experience,
-      address: hairstylist.address,
-      bio: hairstylist.bio
+      experience_years: hairstylist.experience_years,
+      bio: hairstylist.schedule_notes || ""
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleToggleStatus = (hairstylistId: string) => {
-    setHairstylists(prev => prev.map(hairstylist => 
-      hairstylist.id === hairstylistId 
-        ? { ...hairstylist, status: hairstylist.status === "active" ? "inactive" : "active" }
-        : hairstylist
-    ));
-    
+  const handleToggleStatus = async (hairstylistId: string) => {
     const hairstylist = hairstylists.find(s => s.id === hairstylistId);
-    toast({
-      title: "Status Updated",
-      description: `${hairstylist?.fullName} has been ${hairstylist?.status === "active" ? "deactivated" : "activated"}.`,
-    });
+    if (!hairstylist) return;
+
+    try {
+      if (hairstylist.user_profile.is_active) {
+        await hairstylistHelpers.deactivateHairstylist(hairstylistId);
+      } else {
+        await hairstylistHelpers.activateHairstylist(hairstylistId);
+      }
+      
+      toast({
+        title: "Success",
+        description: `${hairstylist.user_profile.full_name} has been ${hairstylist.user_profile.is_active ? "deactivated" : "activated"}.`,
+      });
+
+      // Reload data
+      await loadHairstylists();
+    } catch (error) {
+      console.error('Error toggling hairstylist status:', error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleResetPassword = (hairstylistId: string) => {
     const hairstylist = hairstylists.find(s => s.id === hairstylistId);
     toast({
       title: "Password Reset",
-      description: `Password reset link sent to ${hairstylist?.email}`,
+      description: `Password reset link sent to ${hairstylist?.user_profile.email}`,
     });
     setIsResetPasswordDialogOpen(false);
   };
 
   const allSpecialties = [...new Set(hairstylists.flatMap(s => s.specialties))];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading hairstylists...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -274,7 +307,7 @@ const Hairstylists = () => {
           <CardContent>
             <div className="text-2xl font-bold">{hairstylists.length}</div>
             <p className="text-xs text-muted-foreground">
-              {hairstylists.filter(s => s.status === "active").length} active
+              {hairstylists.filter(s => s.user_profile.is_active).length} active
             </p>
           </CardContent>
         </Card>
@@ -286,7 +319,7 @@ const Hairstylists = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {hairstylists.reduce((sum, s) => sum + s.totalClients, 0)}
+              {hairstylists.reduce((sum, s) => sum + (s.total_clients || 0), 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               All time clients served
@@ -301,7 +334,7 @@ const Hairstylists = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {hairstylists.reduce((sum, s) => sum + s.monthlyClients, 0)}
+              {hairstylists.reduce((sum, s) => sum + (s.monthly_clients || 0), 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               Clients this month
@@ -311,15 +344,15 @@ const Hairstylists = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Rating</CardTitle>
+            <CardTitle className="text-sm font-medium">Average Experience</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {hairstylists.length > 0 ? (hairstylists.reduce((sum, s) => sum + s.rating, 0) / hairstylists.length).toFixed(1) : '0.0'}
+              {hairstylists.length > 0 ? (hairstylists.reduce((sum, s) => sum + s.experience_years, 0) / hairstylists.length).toFixed(1) : '0.0'}
             </div>
             <p className="text-xs text-muted-foreground">
-              Overall rating
+              Years experience
             </p>
           </CardContent>
         </Card>
@@ -327,7 +360,6 @@ const Hairstylists = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Hairstylists Database</CardTitle>
           <CardDescription>
             {filteredHairstylists.length} of {hairstylists.length} hairstylists
           </CardDescription>
@@ -375,7 +407,6 @@ const Hairstylists = () => {
                   <TableHead>Specialties</TableHead>
                   <TableHead>Experience</TableHead>
                   <TableHead>Clients</TableHead>
-                  <TableHead>Rating</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -386,12 +417,12 @@ const Hairstylists = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={hairstylist.avatar} />
-                          <AvatarFallback>{hairstylist.fullName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          <AvatarImage src={hairstylist.user_profile.avatar_url || ''} />
+                          <AvatarFallback>{hairstylist.user_profile.full_name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{hairstylist.fullName}</div>
-                          <div className="text-sm text-muted-foreground">{hairstylist.experience} years experience</div>
+                          <div className="font-medium">{hairstylist.user_profile.full_name}</div>
+                          <div className="text-sm text-muted-foreground">{hairstylist.experience_years} years experience</div>
                         </div>
                       </div>
                     </TableCell>
@@ -399,11 +430,11 @@ const Hairstylists = () => {
                       <div className="text-sm">
                         <div className="flex items-center gap-1">
                           <Mail className="h-3 w-3" />
-                          {hairstylist.email}
+                          {hairstylist.user_profile.email}
                         </div>
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Phone className="h-3 w-3" />
-                          {hairstylist.phone}
+                          {hairstylist.user_profile.phone || 'N/A'}
                         </div>
                       </div>
                     </TableCell>
@@ -421,22 +452,16 @@ const Hairstylists = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{hairstylist.experience} years</TableCell>
+                    <TableCell>{hairstylist.experience_years} years</TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div className="font-medium">{hairstylist.totalClients} total</div>
-                        <div className="text-muted-foreground">{hairstylist.monthlyClients} this month</div>
+                        <div className="font-medium">{hairstylist.total_clients || 0} total</div>
+                        <div className="text-muted-foreground">{hairstylist.monthly_clients || 0} this month</div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm">{hairstylist.rating}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={hairstylist.status === "active" ? "default" : "secondary"}>
-                        {hairstylist.status}
+                      <Badge variant={hairstylist.user_profile.is_active ? "default" : "secondary"}>
+                        {hairstylist.user_profile.is_active ? "active" : "inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -463,7 +488,7 @@ const Hairstylists = () => {
                           size="sm"
                           onClick={() => handleToggleStatus(hairstylist.id)}
                         >
-                          {hairstylist.status === "active" ? (
+                          {hairstylist.user_profile.is_active ? (
                             <UserX className="h-4 w-4 text-red-500" />
                           ) : (
                             <UserCheck className="h-4 w-4 text-green-500" />
@@ -495,8 +520,8 @@ const Hairstylists = () => {
                 <Input
                   id="name"
                   placeholder="Enter full name"
-                  value={newHairstylist.fullName}
-                  onChange={(e) => setNewHairstylist(prev => ({...prev, fullName: e.target.value}))}
+                  value={newHairstylist.full_name}
+                  onChange={(e) => setNewHairstylist(prev => ({...prev, full_name: e.target.value}))}
                 />
               </div>
               <div className="space-y-2">
@@ -527,8 +552,8 @@ const Hairstylists = () => {
                   id="experience"
                   type="number"
                   placeholder="0"
-                  value={newHairstylist.experience}
-                  onChange={(e) => setNewHairstylist(prev => ({...prev, experience: parseInt(e.target.value) || 0}))}
+                  value={newHairstylist.experience_years}
+                  onChange={(e) => setNewHairstylist(prev => ({...prev, experience_years: parseInt(e.target.value) || 0}))}
                 />
               </div>
             </div>
@@ -540,16 +565,6 @@ const Hairstylists = () => {
                 placeholder="Haircut, Beard Trim, Hair Styling"
                 value={newHairstylist.specialties}
                 onChange={(e) => setNewHairstylist(prev => ({...prev, specialties: e.target.value}))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                placeholder="Enter address"
-                value={newHairstylist.address}
-                onChange={(e) => setNewHairstylist(prev => ({...prev, address: e.target.value}))}
               />
             </div>
 
@@ -568,7 +583,8 @@ const Hairstylists = () => {
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddHairstylist}>
+            <Button onClick={handleAddHairstylist} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Add Hairstylist
             </Button>
           </div>
@@ -581,7 +597,7 @@ const Hairstylists = () => {
           <DialogHeader>
             <DialogTitle>Edit Hairstylist</DialogTitle>
             <DialogDescription>
-              Update hairstylist information for {selectedHairstylist?.fullName}.
+              Update hairstylist information for {selectedHairstylist?.user_profile.full_name}.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -591,8 +607,8 @@ const Hairstylists = () => {
                 <Input
                   id="edit-name"
                   placeholder="Enter full name"
-                  value={editHairstylist.fullName}
-                  onChange={(e) => setEditHairstylist(prev => ({...prev, fullName: e.target.value}))}
+                  value={editHairstylist.full_name}
+                  onChange={(e) => setEditHairstylist(prev => ({...prev, full_name: e.target.value}))}
                 />
               </div>
               <div className="space-y-2">
@@ -603,6 +619,7 @@ const Hairstylists = () => {
                   placeholder="hairstylist@hms.com"
                   value={editHairstylist.email}
                   onChange={(e) => setEditHairstylist(prev => ({...prev, email: e.target.value}))}
+                  disabled
                 />
               </div>
             </div>
@@ -623,8 +640,8 @@ const Hairstylists = () => {
                   id="edit-experience"
                   type="number"
                   placeholder="0"
-                  value={editHairstylist.experience}
-                  onChange={(e) => setEditHairstylist(prev => ({...prev, experience: parseInt(e.target.value) || 0}))}
+                  value={editHairstylist.experience_years}
+                  onChange={(e) => setEditHairstylist(prev => ({...prev, experience_years: parseInt(e.target.value) || 0}))}
                 />
               </div>
             </div>
@@ -636,16 +653,6 @@ const Hairstylists = () => {
                 placeholder="Haircut, Beard Trim, Hair Styling"
                 value={editHairstylist.specialties}
                 onChange={(e) => setEditHairstylist(prev => ({...prev, specialties: e.target.value}))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input
-                id="edit-address"
-                placeholder="Enter address"
-                value={editHairstylist.address}
-                onChange={(e) => setEditHairstylist(prev => ({...prev, address: e.target.value}))}
               />
             </div>
 
@@ -664,7 +671,8 @@ const Hairstylists = () => {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditHairstylist}>
+            <Button onClick={handleEditHairstylist} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Update Hairstylist
             </Button>
           </div>
@@ -677,12 +685,12 @@ const Hairstylists = () => {
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
             <DialogDescription>
-              Send password reset link to {selectedHairstylist?.fullName}?
+              Send password reset link to {selectedHairstylist?.user_profile.full_name}?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              A password reset link will be sent to: <strong>{selectedHairstylist?.email}</strong>
+              A password reset link will be sent to: <strong>{selectedHairstylist?.user_profile.email}</strong>
             </p>
           </div>
           <div className="flex justify-end gap-2">
