@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -32,9 +32,12 @@ import {
   CheckCircle,
   Upload,
   X,
+  FileText,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { ServiceManager } from "../lib/service-manager";
-import { serviceHelpers } from "../lib/supabase-helpers";
+import { serviceHelpers, notesHelpers } from "../lib/supabase-helpers";
 import { MembershipCalculator } from "../lib/membership-calculator";
 import {
   memberHelpers,
@@ -65,6 +68,42 @@ interface PhotoUpload {
   type: "before" | "after";
 }
 
+interface MemberNote {
+  id: string;
+  hairstylist_id: string;
+  member_id: string;
+  note: string;
+  is_private: boolean;
+  created_at: string;
+  updated_at: string;
+  hairstylist: {
+    id: string;
+    user_profile: {
+      full_name: string;
+    } | null;
+  } | null;
+}
+
+interface MemberVisitHistory {
+  id: string;
+  visit_date: string;
+  total_price: number;
+  final_price: number;
+  hairstylist_notes?: string;
+  hairstylist: {
+    user_profile: {
+      full_name: string;
+    } | null;
+  } | null;
+  visit_services: Array<{
+    service: {
+      name: string;
+      category: string;
+      base_price: number;
+    };
+  }>;
+}
+
 const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
   hairstylistId,
   assignedMembers,
@@ -88,6 +127,12 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
   const [afterPhotos, setAfterPhotos] = useState<PhotoUpload[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: Member & Services, 2: Photos & Notes, 3: Review
+  const [memberNotesHistory, setMemberNotesHistory] = useState<MemberNote[]>([]);
+  const [loadingNotesHistory, setLoadingNotesHistory] = useState(false);
+  const [showNotesHistory, setShowNotesHistory] = useState(false);
+  const [memberVisitHistory, setMemberVisitHistory] = useState<any[]>([]);
+  const [loadingVisitHistory, setLoadingVisitHistory] = useState(false);
+  const [showVisitHistory, setShowVisitHistory] = useState(false);
 
   // Load services from Supabase
   useEffect(() => {
@@ -107,12 +152,68 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
     loadServices();
   }, []);
 
+  const loadNotesHistory = useCallback(async (memberId: string) => {
+    try {
+      setLoadingNotesHistory(true);
+      const notes = await notesHelpers.getNotesForMember(memberId, hairstylistId);
+      setMemberNotesHistory(notes);
+    } catch (error) {
+      console.error('Error loading notes history:', error);
+      // Don't show error toast for notes loading failure
+    } finally {
+      setLoadingNotesHistory(false);
+    }
+  }, [hairstylistId]);
+
+  const loadVisitHistory = useCallback(async (memberId: string) => {
+    try {
+      setLoadingVisitHistory(true);
+      const client = await import("../lib/supabase").then(m => m.supabase);
+      const { data, error } = await client
+        .from('visits')
+        .select(`
+          id,
+          visit_date,
+          total_price,
+          final_price,
+          hairstylist_notes,
+          hairstylist:hairstylists(
+            user_profile:user_profiles(full_name)
+          ),
+          visit_services(
+            service:services(
+              name,
+              category,
+              base_price
+            )
+          )
+        `)
+        .eq('member_id', memberId)
+        .order('visit_date', { ascending: false })
+        .limit(10); // Batasi 10 visit terakhir
+
+      if (error) {
+        console.error('Error loading visit history:', error);
+      } else {
+      setMemberVisitHistory(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading visit history:', error);
+    } finally {
+      setLoadingVisitHistory(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedMemberId) {
       const member = assignedMembers.find((m) => m.id === selectedMemberId);
       setSelectedMember(member || null);
+      
+      // Load notes and visit history for the selected member
+      loadNotesHistory(selectedMemberId);
+      loadVisitHistory(selectedMemberId);
     }
-  }, [selectedMemberId, assignedMembers]);
+  }, [selectedMemberId, assignedMembers, loadNotesHistory, loadVisitHistory]);
 
   const addService = async (serviceId: string) => {
     const service = availableServices.find((s) => s.id === serviceId);
@@ -265,10 +366,23 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
       };
 
       console.log("🚀 Creating visit with data:", visitData);
+      console.log("💰 Visit totals:", {
+        services: selectedServices.length,
+        baseTotal: totals.baseTotal,
+        totalDiscount: totals.totalDiscount,
+        finalPrice: totals.finalPrice,
+        pointsEarned: totals.pointsEarned,
+      });
+      
       const newVisit = await visitHelpers.createVisit(visitData);
       const visitId = newVisit.id;
 
-      console.log("✅ Visit created successfully, ID:", visitId);
+      console.log("✅ Visit created successfully:", {
+        visitId,
+        memberId: visitData.member_id,
+        finalPrice: visitData.final_price,
+        visit: newVisit
+      });
 
       // Upload photos if any
       const photoUploadPromises: Promise<void>[] = [];
@@ -312,6 +426,50 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         console.log("✅ All photos uploaded successfully!");
       }
 
+      // Save personal notes if any
+      if (personalNotes.trim()) {
+        try {
+          console.log("💾 Saving personal notes...");
+          await notesHelpers.createNote({
+            hairstylist_id: hairstylistId,
+            member_id: selectedMember.id,
+            note: personalNotes.trim(),
+            is_private: true
+          });
+          console.log("✅ Personal notes saved successfully!");
+        } catch (notesError) {
+          console.error("⚠️ Failed to save personal notes:", notesError);
+          // Don't fail the entire visit if notes saving fails
+        }
+      }
+
+      // Verify member points were updated
+      console.log("🔍 Verifying member points update...");
+      try {
+        // Direct query to members table instead of using getMemberWithProfile
+        const { supabase } = await import("../lib/supabase");
+        const { data: memberData, error: memberError } = await supabase
+          .from('members')
+          .select('id, membership_points, total_visits, total_spent, last_visit_date, membership_tier')
+          .eq('id', visitData.member_id)
+          .single();
+          
+        if (memberError) {
+          console.error("⚠️ Failed to verify member points:", memberError);
+        } else {
+          console.log("📊 Member data after visit:", {
+            memberId: visitData.member_id,
+            membership_points: memberData?.membership_points,
+            total_visits: memberData?.total_visits,
+            total_spent: memberData?.total_spent,
+            last_visit_date: memberData?.last_visit_date,
+            membership_tier: memberData?.membership_tier
+          });
+        }
+      } catch (verificationError) {
+        console.error("⚠️ Failed to verify member points:", verificationError);
+      }
+
       toast.success(
         `Visit recorded successfully! ${
           photoUploadPromises.length > 0
@@ -320,9 +478,9 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         }`
       );
       onVisitRecorded();
-    } catch (error: any) {
+    } catch (error) {
       console.error("💥 Failed to record visit:", error);
-      toast.error("Failed to record visit: " + error.message);
+      toast.error("Failed to record visit: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsSubmitting(false);
     }
@@ -418,28 +576,177 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
               </Select>
 
               {selectedMember && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Total Visits:</span>
-                      <p className="font-medium">
-                        {selectedMember.total_visits}
-                      </p>
+                <div className="mt-4 space-y-4">
+                  {/* Basic Member Info */}
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Total Visits:</span>
+                        <p className="font-medium">
+                          {selectedMember.total_visits}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Total Spent:</span>
+                        <p className="font-medium">
+                          {formatCurrency(selectedMember.total_spent)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Discount:</span>
+                        <p className="font-medium text-green-600">
+                          {ServiceManager.getMembershipDiscount(
+                            selectedMember.membership_tier
+                          )}
+                          %
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Total Spent:</span>
-                      <p className="font-medium">
-                        {formatCurrency(selectedMember.total_spent)}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Discount:</span>
-                      <p className="font-medium text-green-600">
-                        {ServiceManager.getMembershipDiscount(
-                          selectedMember.membership_tier
+                  </div>
+
+                  {/* History Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Notes History */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">Previous Notes</span>
+                        </div>
+                        {memberNotesHistory.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowNotesHistory(!showNotesHistory)}
+                          >
+                            {showNotesHistory ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
                         )}
-                        %
-                      </p>
+                      </div>
+
+                      {loadingNotesHistory ? (
+                        <div className="flex items-center justify-center py-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          <span className="ml-2 text-xs text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : memberNotesHistory.length === 0 ? (
+                        <p className="text-sm text-gray-500">No previous notes</p>
+                      ) : showNotesHistory ? (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {memberNotesHistory.slice(0, 3).map((note) => (
+                            <div key={note.id} className="text-xs border-b pb-2 last:border-b-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium text-gray-700">
+                                  {note.hairstylist?.user_profile?.full_name || 'Unknown'}
+                                </span>
+                                <span className="text-gray-400">
+                                  {new Date(note.created_at).toLocaleDateString('id-ID')}
+                                </span>
+                              </div>
+                              <p className="text-gray-600 line-clamp-2">{note.note}</p>
+                            </div>
+                          ))}
+                          {memberNotesHistory.length > 3 && (
+                            <p className="text-xs text-blue-600">+{memberNotesHistory.length - 3} more notes</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-blue-600 cursor-pointer" onClick={() => setShowNotesHistory(true)}>
+                          {memberNotesHistory.length} notes available - click to view
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Visit History */}
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          <span className="font-medium">Recent Visits</span>
+                        </div>
+                        {memberVisitHistory.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowVisitHistory(!showVisitHistory)}
+                          >
+                            {showVisitHistory ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {loadingVisitHistory ? (
+                        <div className="flex items-center justify-center py-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          <span className="ml-2 text-xs text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : memberVisitHistory.length === 0 ? (
+                        <p className="text-sm text-gray-500">No previous visits</p>
+                      ) : showVisitHistory ? (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {memberVisitHistory.slice(0, 3).map((visit) => (
+                            <div key={visit.id} className="text-xs border-b pb-2 last:border-b-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-gray-400 text-xs">
+                                  {new Date(visit.visit_date).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                                <span className="text-gray-500 text-xs">
+                                  {formatCurrency(visit.final_price)}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                {visit.visit_services?.map((vs: {service: {name: string, category: string}}, idx: number) => (
+                                  <span key={idx} className="inline-block text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1">
+                                    {vs.service?.name}
+                                  </span>
+                                ))}
+                              </div>
+                              {visit.hairstylist_notes && (
+                                <p className="text-gray-600 text-xs mt-1 italic line-clamp-1">
+                                  "{visit.hairstylist_notes}"
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                          {memberVisitHistory.length > 3 && (
+                            <p className="text-xs text-blue-600">+{memberVisitHistory.length - 3} more visits</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm">
+                          <p className="text-gray-600 mb-1">{memberVisitHistory.length} visits available</p>
+                          {memberVisitHistory.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500">Recent services:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {memberVisitHistory[0]?.visit_services?.slice(0, 3).map((vs: {service: {name: string}}, idx: number) => (
+                                  <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                    {vs.service?.name}
+                                  </span>
+                                ))}
+                                {memberVisitHistory[0]?.visit_services?.length > 3 && (
+                                  <span className="text-xs text-gray-500">...</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-blue-600 cursor-pointer mt-1" onClick={() => setShowVisitHistory(true)}>
+                                Click to view all visits
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -733,10 +1040,94 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
           {/* Notes */}
           <Card>
             <CardHeader>
-              <CardTitle>Notes</CardTitle>
-              <CardDescription>Add any notes about this visit</CardDescription>
+              <CardTitle className="flex items-center justify-between">
+                <span>Notes</span>
+                {selectedMember && memberNotesHistory.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNotesHistory(!showNotesHistory)}
+                  >
+                    {showNotesHistory ? (
+                      <>
+                        <EyeOff className="h-4 w-4 mr-2" />
+                        Hide History
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        View History ({memberNotesHistory.length})
+                      </>
+                    )}
+                  </Button>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Add any notes about this visit
+                {selectedMember && memberNotesHistory.length > 0 && showNotesHistory && (
+                  <span> and view previous notes</span>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Notes History */}
+              {selectedMember && showNotesHistory && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span className="font-medium">Previous Notes for {selectedMember.user_profile?.full_name}</span>
+                  </div>
+                  
+                  {loadingNotesHistory ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <span className="ml-2 text-sm text-muted-foreground">Loading notes...</span>
+                    </div>
+                  ) : memberNotesHistory.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto border rounded-lg">
+                      <div className="space-y-3 p-4">
+                        {memberNotesHistory.map((note) => (
+                          <div key={note.id} className="border-b pb-3 last:border-b-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {note.hairstylist?.user_profile?.full_name || 'Unknown Hairstylist'}
+                                </span>
+                                {note.hairstylist_id === hairstylistId ? (
+                                  <Badge variant="default" className="text-xs">Your Note</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {note.is_private ? 'Private' : 'Shared'}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(note.created_at).toLocaleDateString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                              {note.note}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg">
+                      No previous notes found for this member
+                    </div>
+                  )}
+                  
+                  <div className="border-t pt-4">
+                    <span className="text-sm font-medium">Add New Notes:</span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="hairstylist-notes">
                   Hairstylist Notes (Visible to member)

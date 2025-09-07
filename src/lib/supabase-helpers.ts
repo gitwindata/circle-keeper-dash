@@ -1094,7 +1094,7 @@ export const visitHelpers = {
       
       // Manual points calculation (since trigger has issues)
       try {
-        console.log("🎯 Calculating points manually...");
+        console.log("🎯 Starting manual points calculation...");
         
         // Get member's current tier
         const { data: member, error: memberError } = await supabaseAdmin
@@ -1102,6 +1102,8 @@ export const visitHelpers = {
           .select('membership_tier, membership_points, total_visits, total_spent')
           .eq('id', visitData.member_id)
           .single();
+          
+        console.log("📊 Member data before update:", { member, memberError });
           
         if (!memberError && member) {
           // Calculate tier multiplier
@@ -1116,46 +1118,76 @@ export const visitHelpers = {
           // Calculate points (1 point per 10k IDR)
           const pointsEarned = Math.floor((visitData.final_price / 10000) * tierMultiplier);
           
-          console.log(`📊 Points calculation: ${visitData.final_price} IDR × ${tierMultiplier} = ${pointsEarned} points`);
+          console.log(`� Points calculation details:`, {
+            final_price: visitData.final_price,
+            membership_tier: member.membership_tier,
+            tierMultiplier,
+            pointsEarned,
+            current_points: member.membership_points,
+            new_points_total: member.membership_points + pointsEarned
+          });
           
           // Update member stats
-          const { error: updateError } = await supabaseAdmin
+          const updateData = {
+            membership_points: member.membership_points + pointsEarned,
+            total_visits: member.total_visits + 1,
+            total_spent: member.total_spent + visitData.final_price,
+            last_visit_date: new Date().toISOString().split('T')[0]
+          };
+          
+          console.log(`🔄 Updating member with data:`, updateData);
+          
+          const { data: updatedMember, error: updateError } = await supabaseAdmin
             .from('members')
-            .update({
-              membership_points: member.membership_points + pointsEarned,
-              total_visits: member.total_visits + 1,
-              total_spent: member.total_spent + visitData.final_price,
-              last_visit_date: new Date().toISOString().split('T')[0]
-            })
-            .eq('id', visitData.member_id);
+            .update(updateData)
+            .eq('id', visitData.member_id)
+            .select()
+            .single();
+            
+          console.log(`📈 Member update result:`, { updatedMember, updateError });
             
           if (updateError) {
-            console.error('⚠️ Failed to update member stats:', updateError);
+            console.error('❌ Failed to update member stats:', updateError);
+            throw new Error(`Member update failed: ${updateError.message}`);
           } else {
-            console.log(`✅ Member stats updated: +${pointsEarned} points`);
+            console.log(`✅ Member stats updated successfully: +${pointsEarned} points (${member.membership_points} → ${member.membership_points + pointsEarned})`);
           }
           
           // Update hairstylist stats
+          console.log("👨‍💼 Updating hairstylist stats...");
           const { data: hairstylist, error: hairstylistError } = await supabaseAdmin
             .from('hairstylists')
             .select('total_revenue')
             .eq('id', visitData.hairstylist_id)
             .single();
             
+          console.log("👨‍💼 Hairstylist data:", { hairstylist, hairstylistError });
+            
           if (!hairstylistError && hairstylist) {
-            await supabaseAdmin
+            const { data: updatedHairstylist, error: hsUpdateError } = await supabaseAdmin
               .from('hairstylists')
               .update({
                 total_revenue: hairstylist.total_revenue + visitData.final_price
               })
-              .eq('id', visitData.hairstylist_id);
+              .eq('id', visitData.hairstylist_id)
+              .select()
+              .single();
               
-            console.log('✅ Hairstylist stats updated');
+            console.log('👨‍💼 Hairstylist update result:', { updatedHairstylist, hsUpdateError });
+            
+            if (hsUpdateError) {
+              console.error('⚠️ Failed to update hairstylist stats:', hsUpdateError);
+            } else {
+              console.log('✅ Hairstylist stats updated successfully');
+            }
           }
+        } else {
+          console.error('❌ Failed to fetch member data or member not found:', { memberError, member });
         }
       } catch (pointsError) {
-        console.error('⚠️ Points calculation failed (non-critical):', pointsError);
-        // Don't throw error - visit was created successfully
+        console.error('💥 Points calculation failed (CRITICAL):', pointsError);
+        // Don't throw error - visit was created successfully, but points calculation failed
+        console.log('⚠️ Visit created but points calculation failed - manual intervention may be needed');
       }
       
       return visit;
@@ -1539,4 +1571,107 @@ export const handleSupabaseError = (error: any): string => {
     return error.message;
   }
   return "An unexpected error occurred.";
+};
+
+// Personal Notes helpers
+export const notesHelpers = {
+  // Get notes for a member (both private notes by current hairstylist and public notes by others)
+  async getNotesForMember(memberId: string, hairstylistId: string) {
+    const client = await getSupabaseClient();
+    
+    const { data, error } = await client
+      .from('personal_notes')
+      .select(`
+        *,
+        hairstylist:hairstylists(
+          *,
+          user_profile:user_profiles(full_name)
+        )
+      `)
+      .eq('member_id', memberId)
+      .or(`hairstylist_id.eq.${hairstylistId},is_private.eq.false`)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching notes:', error);
+      throw error;
+    }
+    
+    return data || [];
+  },
+
+  // Create a new note
+  async createNote(noteData: {
+    hairstylist_id: string;
+    member_id: string;
+    note: string;
+    is_private: boolean;
+  }) {
+    const client = await getSupabaseClient();
+    
+    const { data, error } = await client
+      .from('personal_notes')
+      .insert(noteData)
+      .select(`
+        *,
+        hairstylist:hairstylists(
+          *,
+          user_profile:user_profiles(full_name)
+        )
+      `)
+      .single();
+      
+    if (error) {
+      console.error('Error creating note:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Update an existing note
+  async updateNote(noteId: string, updates: {
+    note?: string;
+    is_private?: boolean;
+  }) {
+    const client = await getSupabaseClient();
+    
+    const { data, error } = await client
+      .from('personal_notes')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId)
+      .select(`
+        *,
+        hairstylist:hairstylists(
+          *,
+          user_profile:user_profiles(full_name)
+        )
+      `)
+      .single();
+      
+    if (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
+    
+    return data;
+  },
+
+  // Delete a note
+  async deleteNote(noteId: string) {
+    const client = await getSupabaseClient();
+    
+    const { error } = await client
+      .from('personal_notes')
+      .delete()
+      .eq('id', noteId);
+      
+    if (error) {
+      console.error('Error deleting note:', error);
+      throw error;
+    }
+  }
 };

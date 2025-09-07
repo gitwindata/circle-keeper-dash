@@ -51,30 +51,30 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
 
   const getProgressColor = (tier: MembershipTier) => {
     switch (tier) {
-      case 'bronze': return 'from-amber-600 to-amber-400';
-      case 'silver': return 'from-gray-600 to-gray-400';
-      case 'gold': return 'from-yellow-600 to-yellow-400';
-      case 'platinum': return 'from-purple-600 to-purple-400';
-      case 'diamond': return 'from-blue-600 to-blue-400';
-      default: return 'from-gray-600 to-gray-400';
+      case 'bronze': return 'from-amber-500 to-orange-500';
+      case 'silver': return 'from-slate-400 to-gray-500';
+      case 'gold': return 'from-yellow-400 to-amber-500';
+      case 'platinum': return 'from-purple-500 to-indigo-600';
+      case 'diamond': return 'from-blue-500 to-cyan-600';
+      default: return 'from-amber-500 to-orange-500';
     }
   };
 
   return (
     <Card className={`${className} overflow-hidden`}>
       {/* Header with Current Tier */}
-      <CardHeader className={`bg-gradient-to-r ${currentLevel.color} text-white`}>
+      <CardHeader className={`bg-gradient-to-r ${getProgressColor(member.membership_tier)} text-white`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {getTierIcon(member.membership_tier)}
             <div>
-              <CardTitle className="text-white">{currentLevel.name} Member</CardTitle>
-              <CardDescription className="text-white/80">
-                Since {new Date(member.created_at).getFullYear()}
+              <CardTitle className="text-white text-xl font-bold">{currentLevel.name} Member</CardTitle>
+              <CardDescription className="text-white/90 font-medium">
+                Since {new Date(member.join_date).getFullYear()}
               </CardDescription>
             </div>
           </div>
-          <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+          <Badge variant="secondary" className="bg-white text-gray-900 font-semibold px-3 py-1">
             {currentLevel.discountPercentage}% Discount
           </Badge>
         </div>
@@ -94,22 +94,22 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
             <div className="text-sm text-gray-600">Total Spent</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{member.loyalty_points || 0}</div>
+            <div className="text-2xl font-bold text-purple-600">{member.membership_points || 0}</div>
             <div className="text-sm text-gray-600">Points</div>
           </div>
         </div>
 
         {/* Benefits */}
-        <div>
-          <h4 className="font-medium mb-3 flex items-center gap-2">
-            <Gift className="h-4 w-4" />
-            Your Benefits
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
+            <Gift className="h-5 w-5 text-blue-600" />
+            Your {currentLevel.name} Member Benefits
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {currentLevel.benefits.map((benefit, index) => (
-              <div key={index} className="flex items-start gap-2 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0" />
-                <span className="text-gray-700">{benefit}</span>
+              <div key={index} className="flex items-start gap-3 text-sm">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 mt-2 flex-shrink-0" />
+                <span className="text-gray-700 font-medium">{benefit}</span>
               </div>
             ))}
           </div>
