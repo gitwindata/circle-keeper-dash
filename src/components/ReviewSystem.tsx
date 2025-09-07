@@ -3,7 +3,7 @@ import { Review, ReviewFormData, ReviewType, Visit, Service, Hairstylist } from 
 import { supabase } from '../lib/supabase';
 import { ServiceManager } from '../lib/service-manager';
 import { useAuth } from '../hooks/use-auth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ interface ReviewSystemProps {
   memberId?: string;
   showSubmitForm?: boolean;
   className?: string;
+  onReviewSubmitted?: () => void;
 }
 
 interface VisitForReview extends Visit {
@@ -29,7 +30,7 @@ interface VisitForReview extends Visit {
   reviews?: Review[];
 }
 
-const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '' }: ReviewSystemProps) => {
+const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '', onReviewSubmitted }: ReviewSystemProps) => {
   const { userProfile } = useAuth();
   const [visit, setVisit] = useState<VisitForReview | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -128,8 +129,15 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
   };
 
   const submitReview = async () => {
-    if (!reviewForm.visit_id || !userProfile?.id) {
-      toast.error('Missing required information');
+    if (!userProfile?.id) {
+      toast.error('Please log in to submit a review');
+      return;
+    }
+
+    // For visit-specific reviews, visit_id is required
+    // For general reviews, visit_id can be null
+    if (visitId && !reviewForm.visit_id) {
+      toast.error('Missing visit information');
       return;
     }
 
@@ -144,10 +152,10 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
       const { error } = await supabase
         .from('reviews')
         .insert({
-          visit_id: reviewForm.visit_id,
+          visit_id: reviewForm.visit_id || null,
           member_id: userProfile.id,
           review_type: reviewForm.review_type,
-          target_id: reviewForm.target_id,
+          target_id: reviewForm.target_id || null,
           rating: reviewForm.rating,
           comment: reviewForm.comment || null,
           is_anonymous: reviewForm.is_anonymous
@@ -172,6 +180,11 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
         await loadVisitAndReviews();
       } else if (memberId) {
         await loadMemberReviews();
+      }
+      
+      // Call the callback if provided
+      if (onReviewSubmitted) {
+        onReviewSubmitted();
       }
     } catch (error: any) {
       console.error('Failed to submit review:', error);
@@ -432,6 +445,108 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* General Review Options (if no specific visit) */}
+      {!visit && showSubmitForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ThumbsUp className="h-5 w-5" />
+              Share Your Experience
+            </CardTitle>
+            <CardDescription>
+              Leave a general review about our services
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Barbershop Review */}
+              <Card className="cursor-pointer hover:border-primary transition-colors">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <Building2 className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                    <h4 className="font-medium text-gray-900">Salon Overall</h4>
+                    <p className="text-sm text-gray-600 mt-1">Rate the salon experience</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        setActiveReviewType('barbershop');
+                        setReviewForm(prev => ({
+                          ...prev,
+                          review_type: 'barbershop',
+                          target_id: undefined
+                        }));
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Review
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Service Review */}
+              <Card className="cursor-pointer hover:border-primary transition-colors">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <Scissors className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                    <h4 className="font-medium text-gray-900">Services</h4>
+                    <p className="text-sm text-gray-600 mt-1">Rate our services in general</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        setActiveReviewType('service');
+                        setReviewForm(prev => ({
+                          ...prev,
+                          review_type: 'service',
+                          target_id: undefined
+                        }));
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Review
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Staff Review */}
+              <Card className="cursor-pointer hover:border-primary transition-colors">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <User className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+                    <h4 className="font-medium text-gray-900">Staff</h4>
+                    <p className="text-sm text-gray-600 mt-1">Rate our staff service</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        setActiveReviewType('hairstylist');
+                        setReviewForm(prev => ({
+                          ...prev,
+                          review_type: 'hairstylist',
+                          target_id: undefined
+                        }));
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Review
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </CardContent>
         </Card>

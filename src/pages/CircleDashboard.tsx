@@ -1,11 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { LogOut, Star, Calendar, TrendingUp, Camera, Award, User, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { LogOut, Star, Calendar, TrendingUp, Camera, Award, User, Clock, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -23,15 +24,11 @@ const CircleDashboard = () => {
   const [visitHistory, setVisitHistory] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedVisitForReview, setSelectedVisitForReview] = useState<Visit | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      loadMemberData();
-    }
-  }, [user]);
-
-  const loadMemberData = async () => {
+  const loadMemberData = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -55,6 +52,24 @@ const CircleDashboard = () => {
     } finally {
       setLoading(false);
     }
+  }, [user]);
+
+  useEffect(() => {
+    loadMemberData();
+  }, [loadMemberData]);
+
+  const handleReviewSubmitted = useCallback(() => {
+    setReviewDialogOpen(false);
+    setSelectedVisitForReview(null);
+    // Reload data to refresh any stats that might have changed
+    loadMemberData();
+    toast.success('Thank you for your review!');
+  }, [loadMemberData]);
+
+  const handleLeaveGeneralReview = () => {
+    // Set no specific visit (general review)
+    setSelectedVisitForReview(null);
+    setReviewDialogOpen(true);
   };
 
   const handleLogout = async () => {
@@ -237,7 +252,11 @@ const CircleDashboard = () => {
 
           {/* Membership Tab */}
           <TabsContent value="membership" className="space-y-6">
-            <MembershipLevelCard member={memberData} className="bg-white border border-gray-200 shadow-sm" />
+            <MembershipLevelCard 
+              member={memberData} 
+              onLeaveReview={handleLeaveGeneralReview}
+              className="bg-white border border-gray-200 shadow-sm" 
+            />
           </TabsContent>
 
           {/* Overview Tab */}
@@ -342,15 +361,29 @@ const CircleDashboard = () => {
                               with {visit.hairstylist?.user_profile?.full_name}
                             </p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-gray-900 font-semibold">
-                              {formatCurrency(visit.final_price)}
-                            </p>
-                            {visit.discount_percentage > 0 && (
-                              <p className="text-green-600 text-sm">
-                                {visit.discount_percentage}% discount applied
+                          <div className="text-right flex flex-col items-end gap-2">
+                            <div>
+                              <p className="text-gray-900 font-semibold">
+                                {formatCurrency(visit.final_price)}
                               </p>
-                            )}
+                              {visit.discount_percentage > 0 && (
+                                <p className="text-green-600 text-sm">
+                                  {visit.discount_percentage}% discount applied
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={visit.reviews && visit.reviews.length > 0 ? "secondary" : "outline"}
+                              onClick={() => {
+                                setSelectedVisitForReview(visit);
+                                setReviewDialogOpen(true);
+                              }}
+                              className="text-xs"
+                            >
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              {visit.reviews && visit.reviews.length > 0 ? 'View/Edit Review' : 'Leave Review'}
+                            </Button>
                           </div>
                         </div>
                         
@@ -404,11 +437,25 @@ const CircleDashboard = () => {
           </TabsContent>
 
           {/* Reviews Tab */}
-          <TabsContent value="reviews">
-            <ReviewSystem 
-              memberId={user?.id || ''}
-              showSubmitForm={false}
-            />
+          <TabsContent value="reviews" className="space-y-6">
+            <Card className="bg-white border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-100">
+                <CardTitle className="text-gray-900 flex items-center gap-2">
+                  <Star className="h-5 w-5 text-blue-600" />
+                  Your Reviews & Feedback
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Share your experience and view your previous reviews
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <ReviewSystem 
+                  memberId={user?.id || ''}
+                  showSubmitForm={true}
+                  className="bg-white"
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
@@ -418,6 +465,34 @@ const CircleDashboard = () => {
           <p className="mt-1">Haijoel Men's Salon - Your grooming destination</p>
         </div>
       </div>
+
+      {/* Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Leave a Review</DialogTitle>
+            {selectedVisitForReview ? (
+              <p className="text-sm text-gray-600">
+                Review your visit on {format(new Date(selectedVisitForReview.visit_date), 'MMMM d, yyyy')} 
+                with {selectedVisitForReview.hairstylist?.user_profile?.full_name}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Share your overall experience with our salon and services
+              </p>
+            )}
+          </DialogHeader>
+          <div className="mt-4">
+            <ReviewSystem
+              visitId={selectedVisitForReview?.id}
+              memberId={user?.id || ''}
+              showSubmitForm={true}
+              onReviewSubmitted={handleReviewSubmitted}
+              className=""
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

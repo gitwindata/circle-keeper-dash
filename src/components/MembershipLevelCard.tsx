@@ -1,80 +1,116 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { 
-  Award, 
-  Star, 
-  TrendingUp, 
-  Calendar, 
-  DollarSign, 
+import {
+  Award,
+  Star,
+  TrendingUp,
+  Calendar,
+  DollarSign,
   Trophy,
   Gift,
-  Crown
+  Crown,
 } from "lucide-react";
-import { MembershipCalculator } from '../lib/membership-calculator';
-import { Member, MembershipTier } from '../types';
+import { MembershipCalculator } from "../lib/membership-calculator";
+import { Member, MembershipTier } from "../types";
 
 interface MembershipLevelCardProps {
   member: Member;
   className?: string;
+  onLeaveReview?: () => void;
 }
 
-const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, className = '' }) => {
-  const currentLevel = MembershipCalculator.getLevelInfo(member.membership_tier);
+const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({
+  member,
+  className = "",
+  onLeaveReview,
+}) => {
+  const currentLevel = MembershipCalculator.getLevelInfo(
+    member.membership_tier
+  );
   const progress = MembershipCalculator.calculateProgress(
     member.total_visits,
     member.total_spent,
     member.membership_tier
   );
-  const nextTierInfo = MembershipCalculator.getNextTierInfo(member.membership_tier);
-  
+  const nextTierInfo = MembershipCalculator.getNextTierInfo(
+    member.membership_tier
+  );
+
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
   const getTierIcon = (tier: MembershipTier) => {
     switch (tier) {
-      case 'bronze': return <Award className="h-6 w-6" />;
-      case 'silver': return <Star className="h-6 w-6" />;
-      case 'gold': return <Trophy className="h-6 w-6" />;
-      case 'platinum': return <Crown className="h-6 w-6" />;
-      case 'diamond': return <Gift className="h-6 w-6" />;
-      default: return <Award className="h-6 w-6" />;
+      case "bronze":
+        return <Award className="h-6 w-6" />;
+      case "silver":
+        return <Star className="h-6 w-6" />;
+      case "gold":
+        return <Trophy className="h-6 w-6" />;
+      case "platinum":
+        return <Crown className="h-6 w-6" />;
+      case "diamond":
+        return <Gift className="h-6 w-6" />;
+      default:
+        return <Award className="h-6 w-6" />;
     }
   };
 
   const getProgressColor = (tier: MembershipTier) => {
     switch (tier) {
-      case 'bronze': return 'from-amber-500 to-orange-500';
-      case 'silver': return 'from-slate-400 to-gray-500';
-      case 'gold': return 'from-yellow-400 to-amber-500';
-      case 'platinum': return 'from-purple-500 to-indigo-600';
-      case 'diamond': return 'from-blue-500 to-cyan-600';
-      default: return 'from-amber-500 to-orange-500';
+      case "bronze":
+        return "from-amber-500 to-orange-500";
+      case "silver":
+        return "from-slate-400 to-gray-500";
+      case "gold":
+        return "from-yellow-400 to-amber-500";
+      case "platinum":
+        return "from-purple-500 to-indigo-600";
+      case "diamond":
+        return "from-blue-500 to-cyan-600";
+      default:
+        return "from-amber-500 to-orange-500";
     }
   };
 
   return (
     <Card className={`${className} overflow-hidden`}>
       {/* Header with Current Tier */}
-      <CardHeader className={`bg-gradient-to-r ${getProgressColor(member.membership_tier)} text-white`}>
+      <CardHeader
+        className={`bg-gradient-to-r ${getProgressColor(
+          member.membership_tier
+        )} text-white`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {getTierIcon(member.membership_tier)}
             <div>
-              <CardTitle className="text-white text-xl font-bold">{currentLevel.name} Member</CardTitle>
+              <CardTitle className="text-white text-xl font-bold">
+                {currentLevel.name} Member
+              </CardTitle>
               <CardDescription className="text-white/90 font-medium">
                 Since {new Date(member.join_date).getFullYear()}
               </CardDescription>
             </div>
           </div>
-          <Badge variant="secondary" className="bg-white text-gray-900 font-semibold px-3 py-1">
+          <Badge
+            variant="secondary"
+            className="bg-white text-gray-900 font-semibold px-3 py-1"
+          >
             {currentLevel.discountPercentage}% Discount
           </Badge>
         </div>
@@ -84,7 +120,9 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
         {/* Current Stats */}
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{member.total_visits}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {member.total_visits}
+            </div>
             <div className="text-sm text-gray-600">Total Visits</div>
           </div>
           <div className="text-center">
@@ -94,7 +132,9 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
             <div className="text-sm text-gray-600">Total Spent</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{member.membership_points || 0}</div>
+            <div className="text-2xl font-bold text-purple-600">
+              {member.membership_points || 0}
+            </div>
             <div className="text-sm text-gray-600">Points</div>
           </div>
         </div>
@@ -132,12 +172,16 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Overall Progress</span>
-                <span className="font-medium">{Math.round(progress.overallProgress)}%</span>
+                <span className="font-medium">
+                  {Math.round(progress.overallProgress)}%
+                </span>
               </div>
               <div className="relative">
                 <Progress value={progress.overallProgress} className="h-3" />
-                <div 
-                  className={`absolute inset-0 bg-gradient-to-r ${getProgressColor(nextTierInfo.nextTier.tier)} opacity-80 rounded-full`}
+                <div
+                  className={`absolute inset-0 bg-gradient-to-r ${getProgressColor(
+                    nextTierInfo.nextTier.tier
+                  )} opacity-80 rounded-full`}
                   style={{ width: `${progress.overallProgress}%` }}
                 />
               </div>
@@ -152,7 +196,8 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
                 </div>
                 <Progress value={progress.visitProgress} className="h-2" />
                 <div className="text-xs text-gray-600">
-                  {member.total_visits} / {nextTierInfo.nextTier.minVisits} visits
+                  {member.total_visits} / {nextTierInfo.nextTier.minVisits}{" "}
+                  visits
                 </div>
               </div>
 
@@ -163,22 +208,34 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
                 </div>
                 <Progress value={progress.spendingProgress} className="h-2" />
                 <div className="text-xs text-gray-600">
-                  {formatCurrency(member.total_spent)} / {formatCurrency(nextTierInfo.nextTier.minSpending)}
+                  {formatCurrency(member.total_spent)} /{" "}
+                  {formatCurrency(nextTierInfo.nextTier.minSpending)}
                 </div>
               </div>
             </div>
 
             {/* Requirements Remaining */}
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h5 className="font-medium text-blue-900 mb-2">To reach {nextTierInfo.nextTier.name}:</h5>
+              <h5 className="font-medium text-blue-900 mb-2">
+                To reach {nextTierInfo.nextTier.name}:
+              </h5>
               <div className="space-y-1 text-sm text-blue-800">
                 {nextTierInfo.requirementsToNext && (
                   <>
                     {nextTierInfo.requirementsToNext.visitsNeeded > 0 && (
-                      <div>• {nextTierInfo.requirementsToNext.visitsNeeded} more visits needed</div>
+                      <div>
+                        • {nextTierInfo.requirementsToNext.visitsNeeded} more
+                        visits needed
+                      </div>
                     )}
                     {nextTierInfo.requirementsToNext.spendingNeeded > 0 && (
-                      <div>• {formatCurrency(nextTierInfo.requirementsToNext.spendingNeeded)} more spending needed</div>
+                      <div>
+                        •{" "}
+                        {formatCurrency(
+                          nextTierInfo.requirementsToNext.spendingNeeded
+                        )}{" "}
+                        more spending needed
+                      </div>
                     )}
                   </>
                 )}
@@ -191,12 +248,17 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
                 Unlock {nextTierInfo.nextTier.name} Benefits:
               </h5>
               <div className="space-y-1">
-                {nextTierInfo.nextTier.benefits.slice(0, 3).map((benefit, index) => (
-                  <div key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
-                    <span>{benefit}</span>
-                  </div>
-                ))}
+                {nextTierInfo.nextTier.benefits
+                  .slice(0, 3)
+                  .map((benefit, index) => (
+                    <div
+                      key={index}
+                      className="text-sm text-gray-700 flex items-start gap-2"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
+                      <span>{benefit}</span>
+                    </div>
+                  ))}
                 {nextTierInfo.nextTier.benefits.length > 3 && (
                   <div className="text-sm text-blue-600 font-medium">
                     +{nextTierInfo.nextTier.benefits.length - 3} more benefits
@@ -211,7 +273,9 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
         {progress.isMaxTier && (
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg text-center">
             <Trophy className="h-12 w-12 mx-auto mb-2 text-purple-600" />
-            <h4 className="font-bold text-purple-900 mb-1">Maximum Tier Achieved!</h4>
+            <h4 className="font-bold text-purple-900 mb-1">
+              Maximum Tier Achieved!
+            </h4>
             <p className="text-sm text-purple-700">
               Congratulations! You've reached the highest membership level.
             </p>
@@ -224,7 +288,12 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({ member, class
             <Calendar className="h-4 w-4 mr-2" />
             Book Visit
           </Button>
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={onLeaveReview}
+          >
             <Star className="h-4 w-4 mr-2" />
             Leave Review
           </Button>
