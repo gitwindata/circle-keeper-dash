@@ -152,12 +152,15 @@ const HairstylistDashboard = () => {
         limit: 20,
       });
       setRecentVisits(visits);
-      console.log("🔍 Debug: Loaded visits with member data:", visits.map(v => ({
-        id: v.id,
-        member_id: v.member_id,
-        member: v.member,
-        memberName: v.member?.user_profile?.full_name
-      })));
+      console.log(
+        "🔍 Debug: Loaded visits with member data:",
+        visits.map((v) => ({
+          id: v.id,
+          member_id: v.member_id,
+          member: v.member,
+          memberName: v.member?.user_profile?.full_name,
+        }))
+      );
 
       // Calculate stats
       const now = new Date();
@@ -200,29 +203,37 @@ const HairstylistDashboard = () => {
       // Add recent visits with proper member name handling
       const visitPromises = visits.slice(0, 5).map(async (visit) => {
         let memberName = "Unknown Member";
-        
+
         console.log("🔍 Processing visit:", {
           visitId: visit.id,
           memberId: visit.member_id,
           memberData: visit.member,
-          userProfile: visit.member?.user_profile
+          userProfile: visit.member?.user_profile,
         });
-        
+
         if (visit.member?.user_profile?.full_name) {
           memberName = visit.member.user_profile.full_name;
           console.log("✅ Got member name from visit data:", memberName);
         } else if (visit.member_id) {
           // Use new memberNameHelpers to bypass RLS issues
-          console.log("⚠️ No member profile in visit data, using memberNameHelpers...");
+          console.log(
+            "⚠️ No member profile in visit data, using memberNameHelpers..."
+          );
           try {
             memberName = await memberNameHelpers.getMemberName(visit.member_id);
-            console.log("✅ Got member name from memberNameHelpers:", memberName);
+            console.log(
+              "✅ Got member name from memberNameHelpers:",
+              memberName
+            );
           } catch (error) {
-            console.warn(`💥 Could not fetch member name for ID: ${visit.member_id}`, error);
+            console.warn(
+              `💥 Could not fetch member name for ID: ${visit.member_id}`,
+              error
+            );
             memberName = `Member (${visit.member_id.slice(0, 8)}...)`;
           }
         }
-        
+
         return {
           id: `visit-${visit.id}`,
           type: "visit" as const,
@@ -231,7 +242,7 @@ const HairstylistDashboard = () => {
           member: memberName,
         };
       });
-      
+
       const resolvedActivities = await Promise.all(visitPromises);
       activities.push(...resolvedActivities);
 

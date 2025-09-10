@@ -1,54 +1,82 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { LogOut, Star, Calendar, TrendingUp, Camera, Award, User, Clock, MessageSquare } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  LogOut,
+  Star,
+  Calendar,
+  TrendingUp,
+  Camera,
+  Award,
+  User,
+  Clock,
+  MessageSquare,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useAuth } from '../hooks/use-auth';
-import { memberHelpers, visitHelpers } from '../lib/supabase-helpers';
-import { MembershipCalculator } from '../lib/membership-calculator';
-import PhotoGallery from '../components/PhotoGallery';
-import ReviewSystem from '../components/ReviewSystem';
-import MembershipLevelCard from '../components/MembershipLevelCard';
-import { Member, Visit, MembershipTier, VisitService, VisitPhoto } from '../types';
+import { useAuth } from "../hooks/use-auth";
+import { memberHelpers, visitHelpers } from "../lib/supabase-helpers";
+import { MembershipCalculator } from "../lib/membership-calculator";
+import PhotoGallery from "../components/PhotoGallery";
+import ReviewSystem from "../components/ReviewSystem";
+import MembershipLevelCard from "../components/MembershipLevelCard";
+import {
+  Member,
+  Visit,
+  MembershipTier,
+  VisitService,
+  VisitPhoto,
+} from "../types";
 
 const CircleDashboard = () => {
   const { user, userProfile, signOut } = useAuth();
   const [memberData, setMemberData] = useState<Member | null>(null);
   const [visitHistory, setVisitHistory] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [selectedVisitForReview, setSelectedVisitForReview] = useState<Visit | null>(null);
+  const [selectedVisitForReview, setSelectedVisitForReview] =
+    useState<Visit | null>(null);
   const navigate = useNavigate();
 
   const loadMemberData = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Load member profile with user data
       const member = await memberHelpers.getMemberWithProfile(user.id);
       if (member) {
         setMemberData(member);
-        
+
         // Load visit history
         const visits = await visitHelpers.getVisitsWithDetails({
           member_id: user.id,
-          limit: 10
+          limit: 10,
         });
         setVisitHistory(visits);
       }
     } catch (error) {
-      console.error('Failed to load member data:', error);
-      toast.error('Failed to load your profile data');
+      console.error("Failed to load member data:", error);
+      toast.error("Failed to load your profile data");
     } finally {
       setLoading(false);
     }
@@ -63,7 +91,7 @@ const CircleDashboard = () => {
     setSelectedVisitForReview(null);
     // Reload data to refresh any stats that might have changed
     loadMemberData();
-    toast.success('Thank you for your review!');
+    toast.success("Thank you for your review!");
   }, [loadMemberData]);
 
   const handleLeaveGeneralReview = () => {
@@ -75,16 +103,22 @@ const CircleDashboard = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Logout failed:', error);
-      toast.error('Failed to logout');
+      console.error("Logout failed:", error);
+      toast.error("Failed to logout");
     }
   };
 
   const getMembershipProgress = () => {
-    if (!memberData) return { visitProgress: 0, spendingProgress: 0, overallProgress: 0, isMaxTier: false };
-    
+    if (!memberData)
+      return {
+        visitProgress: 0,
+        spendingProgress: 0,
+        overallProgress: 0,
+        isMaxTier: false,
+      };
+
     return MembershipCalculator.calculateProgress(
       memberData.total_visits,
       memberData.total_spent,
@@ -94,15 +128,15 @@ const CircleDashboard = () => {
 
   const getNextTierInfo = () => {
     if (!memberData) return { nextTier: null, requirementsToNext: null };
-    
+
     return MembershipCalculator.getNextTierInfo(memberData.membership_tier);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -130,22 +164,30 @@ const CircleDashboard = () => {
     );
   }
 
-  const membershipInfo = MembershipCalculator.getLevelInfo(memberData.membership_tier);
-  
+  const membershipInfo = MembershipCalculator.getLevelInfo(
+    memberData.membership_tier
+  );
+
   // Get tier-specific gradient colors
   const getTierGradient = (tier: MembershipTier) => {
     switch (tier) {
-      case 'bronze': return 'bg-gradient-to-r from-amber-500 to-orange-500';
-      case 'silver': return 'bg-gradient-to-r from-slate-400 to-gray-500';
-      case 'gold': return 'bg-gradient-to-r from-yellow-400 to-amber-500';
-      case 'platinum': return 'bg-gradient-to-r from-purple-500 to-indigo-600';
-      case 'diamond': return 'bg-gradient-to-r from-blue-500 to-cyan-600';
-      default: return 'bg-gradient-to-r from-amber-500 to-orange-500';
+      case "bronze":
+        return "bg-gradient-to-r from-amber-500 to-orange-500";
+      case "silver":
+        return "bg-gradient-to-r from-slate-400 to-gray-500";
+      case "gold":
+        return "bg-gradient-to-r from-yellow-400 to-amber-500";
+      case "platinum":
+        return "bg-gradient-to-r from-purple-500 to-indigo-600";
+      case "diamond":
+        return "bg-gradient-to-r from-blue-500 to-cyan-600";
+      default:
+        return "bg-gradient-to-r from-amber-500 to-orange-500";
     }
   };
   const progress = getMembershipProgress();
   const nextTierInfo = getNextTierInfo();
-  const firstName = userProfile.full_name?.split(' ')[0] || 'Member';
+  const firstName = userProfile.full_name?.split(" ")[0] || "Member";
   const lastVisit = visitHistory[0];
 
   return (
@@ -154,19 +196,27 @@ const CircleDashboard = () => {
       <header className="bg-white border-b border-gray-200 p-6 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/hms logo white.svg" alt="HMS Logo" className="h-12 w-12" />
+            <img
+              src="/hms logo white.svg"
+              alt="HMS Logo"
+              className="h-12 w-12"
+            />
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">The Circle</h1>
+              <h1 className="text-xl font-semibold text-gray-900">
+                The Circle
+              </h1>
               <p className="text-sm text-gray-600">Member Dashboard</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-gray-500">Welcome back</p>
-              <p className="font-medium text-gray-900">{userProfile.full_name}</p>
+              <p className="font-medium text-gray-900">
+                {userProfile.full_name}
+              </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleLogout}
               className="border-gray-300 text-gray-700 hover:bg-gray-50"
             >
@@ -182,47 +232,58 @@ const CircleDashboard = () => {
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-semibold text-gray-900 mb-2">Welcome back, {firstName}</h1>
+              <h1 className="text-3xl font-semibold text-gray-900 mb-2">
+                Welcome back, {firstName}
+              </h1>
               <div className="flex items-center gap-3">
-                <Badge 
-                  className={`${getTierGradient(memberData.membership_tier)} text-white px-4 py-2 font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200 border-0`}
+                <Badge
+                  className={`${getTierGradient(
+                    memberData.membership_tier
+                  )} text-white px-4 py-2 font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200 border-0`}
                   variant="secondary"
                 >
                   <Award className="h-4 w-4 mr-2" />
                   {membershipInfo.name} Member
                 </Badge>
                 <span className="text-gray-600">
-                  Since {(() => {
+                  Since{" "}
+                  {(() => {
                     try {
-                      return memberData?.join_date 
-                        ? format(new Date(memberData.join_date), 'MMMM yyyy')
-                        : 'Recently';
+                      return memberData?.join_date
+                        ? format(new Date(memberData.join_date), "MMMM yyyy")
+                        : "Recently";
                     } catch (error) {
-                      console.error('Date formatting error:', error);
-                      return 'Recently';
+                      console.error("Date formatting error:", error);
+                      return "Recently";
                     }
                   })()}
                 </span>
               </div>
             </div>
-            
+
             {/* Membership Stats Cards */}
             <div className="grid grid-cols-3 gap-4">
               <Card className="bg-white border border-gray-200 shadow-sm">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-amber-600">{memberData.total_visits}</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {memberData.total_visits}
+                  </p>
                   <p className="text-xs text-gray-600">Total Visits</p>
                 </CardContent>
               </Card>
               <Card className="bg-white border border-gray-200 shadow-sm">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(memberData.total_spent)}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(memberData.total_spent)}
+                  </p>
                   <p className="text-xs text-gray-600">Total Spent</p>
                 </CardContent>
               </Card>
               <Card className="bg-white border border-gray-200 shadow-sm">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{memberData.membership_points}</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {memberData.membership_points}
+                  </p>
                   <p className="text-xs text-gray-600">Points</p>
                 </CardContent>
               </Card>
@@ -231,31 +292,50 @@ const CircleDashboard = () => {
         </div>
 
         {/* Tab Navigation */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-5 bg-white border border-gray-200">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="membership" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger
+              value="membership"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
               Membership
             </TabsTrigger>
-            <TabsTrigger value="visits" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger
+              value="visits"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
               Visit History
             </TabsTrigger>
-            <TabsTrigger value="photos" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger
+              value="photos"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
               Photo Gallery
             </TabsTrigger>
-            <TabsTrigger value="reviews" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger
+              value="reviews"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+            >
               Reviews
             </TabsTrigger>
           </TabsList>
 
           {/* Membership Tab */}
           <TabsContent value="membership" className="space-y-6">
-            <MembershipLevelCard 
-              member={memberData} 
+            <MembershipLevelCard
+              member={memberData}
               onLeaveReview={handleLeaveGeneralReview}
-              className="bg-white border border-gray-200 shadow-sm" 
+              className="bg-white border border-gray-200 shadow-sm"
             />
           </TabsContent>
 
@@ -275,13 +355,14 @@ const CircleDashboard = () => {
                     <div className="text-center">
                       <p className="text-gray-600 text-sm">Date</p>
                       <p className="text-gray-900 font-semibold">
-                        {format(new Date(lastVisit.visit_date), 'MMM d, yyyy')}
+                        {format(new Date(lastVisit.visit_date), "MMM d, yyyy")}
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-gray-600 text-sm">Hairstylist</p>
                       <p className="text-gray-900 font-semibold">
-                        {lastVisit.hairstylist?.user_profile?.full_name || 'N/A'}
+                        {lastVisit.hairstylist?.user_profile?.full_name ||
+                          "N/A"}
                       </p>
                     </div>
                     <div className="text-center">
@@ -297,16 +378,24 @@ const CircleDashboard = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   {lastVisit.services && lastVisit.services.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-700">
-                      <p className="text-gray-700 text-sm mb-2 font-medium">Services:</p>
+                      <p className="text-gray-700 text-sm mb-2 font-medium">
+                        Services:
+                      </p>
                       <div className="flex flex-wrap gap-2">
-                        {lastVisit.services.map((vs: VisitService, index: number) => (
-                          <Badge key={index} variant="outline" className="border-gray-600">
-                            {vs.service?.name || 'Unknown Service'}
-                          </Badge>
-                        ))}
+                        {lastVisit.services.map(
+                          (vs: VisitService, index: number) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="border-gray-600"
+                            >
+                              {vs.service?.name || "Unknown Service"}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
@@ -322,15 +411,21 @@ const CircleDashboard = () => {
                   Your {membershipInfo.name} Benefits
                 </CardTitle>
                 <CardDescription className="text-gray-600">
-                  Enjoy {membershipInfo.discountPercentage}% discount on all services
+                  Enjoy {membershipInfo.discountPercentage}% discount on all
+                  services
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {membershipInfo.benefits.map((benefit, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                    >
                       <Star className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-800 font-medium text-sm">{benefit}</span>
+                      <span className="text-gray-800 font-medium text-sm">
+                        {benefit}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -351,11 +446,17 @@ const CircleDashboard = () => {
                 {visitHistory.length > 0 ? (
                   <div className="space-y-4">
                     {visitHistory.map((visit) => (
-                      <div key={visit.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div
+                        key={visit.id}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                      >
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <p className="text-gray-900 font-semibold">
-                              {format(new Date(visit.visit_date), 'MMMM d, yyyy')}
+                              {format(
+                                new Date(visit.visit_date),
+                                "MMMM d, yyyy"
+                              )}
                             </p>
                             <p className="text-gray-600 text-sm">
                               with {visit.hairstylist?.user_profile?.full_name}
@@ -374,7 +475,11 @@ const CircleDashboard = () => {
                             </div>
                             <Button
                               size="sm"
-                              variant={visit.reviews && visit.reviews.length > 0 ? "secondary" : "outline"}
+                              variant={
+                                visit.reviews && visit.reviews.length > 0
+                                  ? "secondary"
+                                  : "outline"
+                              }
                               onClick={() => {
                                 setSelectedVisitForReview(visit);
                                 setReviewDialogOpen(true);
@@ -382,21 +487,29 @@ const CircleDashboard = () => {
                               className="text-xs"
                             >
                               <MessageSquare className="h-3 w-3 mr-1" />
-                              {visit.reviews && visit.reviews.length > 0 ? 'View/Edit Review' : 'Leave Review'}
+                              {visit.reviews && visit.reviews.length > 0
+                                ? "View/Edit Review"
+                                : "Leave Review"}
                             </Button>
                           </div>
                         </div>
-                        
+
                         {visit.services && visit.services.length > 0 && (
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {visit.services.map((vs: VisitService, index: number) => (
-                              <Badge key={index} variant="secondary" className="bg-gray-600">
-                                {vs.service?.name || 'Unknown Service'}
-                              </Badge>
-                            ))}
+                            {visit.services.map(
+                              (vs: VisitService, index: number) => (
+                                <Badge
+                                  key={index}
+                                  variant="secondary"
+                                  className="bg-gray-600"
+                                >
+                                  {vs.service?.name || "Unknown Service"}
+                                </Badge>
+                              )
+                            )}
                           </div>
                         )}
-                        
+
                         {visit.photos && visit.photos.length > 0 && (
                           <div className="flex items-center gap-2 text-gray-600 text-sm">
                             <Camera className="h-4 w-4" />
@@ -409,8 +522,13 @@ const CircleDashboard = () => {
                 ) : (
                   <div className="text-center py-12">
                     <Calendar className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Visits Yet</h3>
-                    <p className="text-gray-600">Your visit history will appear here once you start visiting.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Visits Yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Your visit history will appear here once you start
+                      visiting.
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -421,7 +539,9 @@ const CircleDashboard = () => {
           <TabsContent value="photos">
             <Card className="bg-white border border-gray-200 shadow-sm">
               <CardHeader className="border-b border-gray-100">
-                <CardTitle className="text-gray-900">Your Photo Gallery</CardTitle>
+                <CardTitle className="text-gray-900">
+                  Your Photo Gallery
+                </CardTitle>
                 <CardDescription className="text-gray-600">
                   Browse your transformation photos from all visits
                 </CardDescription>
@@ -449,8 +569,8 @@ const CircleDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <ReviewSystem 
-                  memberId={user?.id || ''}
+                <ReviewSystem
+                  memberId={user?.id || ""}
                   showSubmitForm={true}
                   className="bg-white"
                 />
@@ -462,7 +582,9 @@ const CircleDashboard = () => {
         {/* Footer */}
         <div className="text-center text-gray-600 text-sm pt-8 border-t border-gray-200 mt-8">
           <p>Need assistance? Contact your hairstylist or visit our salon.</p>
-          <p className="mt-1">Haijoel Men's Salon - Your grooming destination</p>
+          <p className="mt-1">
+            Haijoel Men's Salon - Your grooming destination
+          </p>
         </div>
       </div>
 
@@ -473,8 +595,13 @@ const CircleDashboard = () => {
             <DialogTitle>Leave a Review</DialogTitle>
             {selectedVisitForReview ? (
               <p className="text-sm text-gray-600">
-                Review your visit on {format(new Date(selectedVisitForReview.visit_date), 'MMMM d, yyyy')} 
-                with {selectedVisitForReview.hairstylist?.user_profile?.full_name}
+                Review your visit on{" "}
+                {format(
+                  new Date(selectedVisitForReview.visit_date),
+                  "MMMM d, yyyy"
+                )}
+                with{" "}
+                {selectedVisitForReview.hairstylist?.user_profile?.full_name}
               </p>
             ) : (
               <p className="text-sm text-gray-600">
@@ -485,7 +612,7 @@ const CircleDashboard = () => {
           <div className="mt-4">
             <ReviewSystem
               visitId={selectedVisitForReview?.id}
-              memberId={user?.id || ''}
+              memberId={user?.id || ""}
               showSubmitForm={true}
               onReviewSubmitted={handleReviewSubmitted}
               className=""

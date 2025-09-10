@@ -89,21 +89,21 @@ const PhotoGallery = ({
 
       // Group photos by visit
       const groups: VisitPhotoGroup[] = [];
-      
+
       visits.forEach((visit) => {
         if (visit.photos && visit.photos.length > 0) {
           const beforePhotos = visit.photos.filter(
-            (photo: VisitPhoto) => 
-              photo.photo_type === "before" && 
+            (photo: VisitPhoto) =>
+              photo.photo_type === "before" &&
               (showPrivatePhotos || photo.is_public)
           );
-          
+
           const afterPhotos = visit.photos.filter(
-            (photo: VisitPhoto) => 
-              photo.photo_type === "after" && 
+            (photo: VisitPhoto) =>
+              photo.photo_type === "after" &&
               (showPrivatePhotos || photo.is_public)
           );
-          
+
           const allPhotos = visit.photos.filter(
             (photo: VisitPhoto) => showPrivatePhotos || photo.is_public
           );
@@ -115,8 +115,10 @@ const PhotoGallery = ({
               beforePhotos,
               afterPhotos,
               allPhotos: allPhotos.sort(
-                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-              )
+                (a, b) =>
+                  new Date(b.created_at).getTime() -
+                  new Date(a.created_at).getTime()
+              ),
             });
           }
         }
@@ -124,7 +126,9 @@ const PhotoGallery = ({
 
       // Sort groups by visit date (newest first)
       groups.sort(
-        (a, b) => new Date(b.visit.visit_date).getTime() - new Date(a.visit.visit_date).getTime()
+        (a, b) =>
+          new Date(b.visit.visit_date).getTime() -
+          new Date(a.visit.visit_date).getTime()
       );
 
       setVisitGroups(groups);
@@ -141,12 +145,21 @@ const PhotoGallery = ({
   }, [loadPhotos]);
 
   // Calculate total photos count
-  const totalPhotos = visitGroups.reduce((total, group) => total + group.allPhotos.length, 0);
-  const totalBefore = visitGroups.reduce((total, group) => total + group.beforePhotos.length, 0);
-  const totalAfter = visitGroups.reduce((total, group) => total + group.afterPhotos.length, 0);
+  const totalPhotos = visitGroups.reduce(
+    (total, group) => total + group.allPhotos.length,
+    0
+  );
+  const totalBefore = visitGroups.reduce(
+    (total, group) => total + group.beforePhotos.length,
+    0
+  );
+  const totalAfter = visitGroups.reduce(
+    (total, group) => total + group.afterPhotos.length,
+    0
+  );
 
   const openLightbox = (photo: VisitPhoto, visitGroup: VisitPhotoGroup) => {
-    setSelectedPhoto({...photo, visit: visitGroup.visit});
+    setSelectedPhoto({ ...photo, visit: visitGroup.visit });
     setCurrentIndex(0);
   };
 
@@ -240,7 +253,9 @@ const PhotoGallery = ({
     <div className={`space-y-6 ${className}`}>
       {/* Summary Stats */}
       <div className="flex items-center gap-4 text-sm text-gray-600">
-        <span>{visitGroups.length} Visit{visitGroups.length !== 1 ? 's' : ''}</span>
+        <span>
+          {visitGroups.length} Visit{visitGroups.length !== 1 ? "s" : ""}
+        </span>
         <span>•</span>
         <span>{totalPhotos} Total Photos</span>
         <span>•</span>
@@ -261,33 +276,42 @@ const PhotoGallery = ({
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      Visit - {format(new Date(group.visit.visit_date), "MMM d, yyyy")}
+                      Visit -{" "}
+                      {format(new Date(group.visit.visit_date), "MMM d, yyyy")}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {group.allPhotos.length} photo{group.allPhotos.length !== 1 ? 's' : ''} 
-                      {group.beforePhotos.length > 0 && group.afterPhotos.length > 0 && 
-                        ` (${group.beforePhotos.length} before, ${group.afterPhotos.length} after)`
-                      }
+                      {group.allPhotos.length} photo
+                      {group.allPhotos.length !== 1 ? "s" : ""}
+                      {group.beforePhotos.length > 0 &&
+                        group.afterPhotos.length > 0 &&
+                        ` (${group.beforePhotos.length} before, ${group.afterPhotos.length} after)`}
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Member Info */}
                 {group.visit.member && (
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">
-                        {group.visit.member.user_profile?.full_name || 'Unknown Member'}
+                        {group.visit.member.user_profile?.full_name ||
+                          "Unknown Member"}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {group.visit.member.membership_tier?.charAt(0).toUpperCase() + 
-                         group.visit.member.membership_tier?.slice(1) || 'Bronze'} Member
+                        {group.visit.member.membership_tier
+                          ?.charAt(0)
+                          .toUpperCase() +
+                          group.visit.member.membership_tier?.slice(1) ||
+                          "Bronze"}{" "}
+                        Member
                       </p>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={(e) => viewMemberDetail(group.visit.member!.id, e)}
+                      onClick={(e) =>
+                        viewMemberDetail(group.visit.member!.id, e)
+                      }
                       className="text-xs"
                     >
                       <UserCheck className="h-3 w-3 mr-1" />
@@ -300,64 +324,70 @@ const PhotoGallery = ({
 
             <CardContent className="p-6">
               {/* Before & After Section */}
-              {group.beforePhotos.length > 0 && group.afterPhotos.length > 0 && (
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  {/* Before Photos */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge className={getPhotoTypeColor("before")}>
-                        Before ({group.beforePhotos.length})
-                      </Badge>
+              {group.beforePhotos.length > 0 &&
+                group.afterPhotos.length > 0 && (
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    {/* Before Photos */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge className={getPhotoTypeColor("before")}>
+                          Before ({group.beforePhotos.length})
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {group.beforePhotos
+                          .slice(0, 4)
+                          .map((photo, photoIndex) => (
+                            <div
+                              key={photo.id}
+                              className="relative aspect-square cursor-pointer group overflow-hidden rounded-lg border-2 border-red-100 hover:border-red-300 transition-colors"
+                              onClick={() => openLightbox(photo, group)}
+                            >
+                              <img
+                                src={photo.file_url}
+                                alt={photo.description || "Before photo"}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {group.beforePhotos.slice(0, 4).map((photo, photoIndex) => (
-                        <div
-                          key={photo.id}
-                          className="relative aspect-square cursor-pointer group overflow-hidden rounded-lg border-2 border-red-100 hover:border-red-300 transition-colors"
-                          onClick={() => openLightbox(photo, group)}
-                        >
-                          <img
-                            src={photo.file_url}
-                            alt={photo.description || "Before photo"}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* After Photos */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge className={getPhotoTypeColor("after")}>
-                        After ({group.afterPhotos.length})
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {group.afterPhotos.slice(0, 4).map((photo, photoIndex) => (
-                        <div
-                          key={photo.id}
-                          className="relative aspect-square cursor-pointer group overflow-hidden rounded-lg border-2 border-green-100 hover:border-green-300 transition-colors"
-                          onClick={() => openLightbox(photo, group)}
-                        >
-                          <img
-                            src={photo.file_url}
-                            alt={photo.description || "After photo"}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
-                        </div>
-                      ))}
+                    {/* After Photos */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge className={getPhotoTypeColor("after")}>
+                          After ({group.afterPhotos.length})
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {group.afterPhotos
+                          .slice(0, 4)
+                          .map((photo, photoIndex) => (
+                            <div
+                              key={photo.id}
+                              className="relative aspect-square cursor-pointer group overflow-hidden rounded-lg border-2 border-green-100 hover:border-green-300 transition-colors"
+                              onClick={() => openLightbox(photo, group)}
+                            >
+                              <img
+                                src={photo.file_url}
+                                alt={photo.description || "After photo"}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* All Photos (when no before/after separation or additional photos) */}
-              {(group.beforePhotos.length === 0 || group.afterPhotos.length === 0) && (
+              {(group.beforePhotos.length === 0 ||
+                group.afterPhotos.length === 0) && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Badge variant="secondary">
@@ -378,7 +408,9 @@ const PhotoGallery = ({
                           loading="lazy"
                         />
                         <div className="absolute top-2 left-2">
-                          <Badge className={getPhotoTypeColor(photo.photo_type)}>
+                          <Badge
+                            className={getPhotoTypeColor(photo.photo_type)}
+                          >
                             {photo.photo_type}
                           </Badge>
                         </div>

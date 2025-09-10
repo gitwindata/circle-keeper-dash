@@ -205,10 +205,12 @@ export const memberHelpers = {
   },
 
   // Get member by ID with profile
-  async getMemberById(memberId: string): Promise<(Member & { user_profile: UserProfile }) | null> {
+  async getMemberById(
+    memberId: string
+  ): Promise<(Member & { user_profile: UserProfile }) | null> {
     try {
       const client = await getSupabaseClient();
-      
+
       const { data, error } = await client
         .from("members")
         .select(
@@ -225,10 +227,12 @@ export const memberHelpers = {
         return null;
       }
 
-      return data ? {
-        ...data,
-        user_profile: data.user_profile || null,
-      } : null;
+      return data
+        ? {
+            ...data,
+            user_profile: data.user_profile || null,
+          }
+        : null;
     } catch (error) {
       console.error(`Failed to get member ${memberId}:`, error);
       return null;
@@ -992,7 +996,10 @@ export const hairstylistHelpers = {
   },
 
   // Reset password directly (admin only)
-  async resetPasswordDirect(userId: string, newPassword: string): Promise<void> {
+  async resetPasswordDirect(
+    userId: string,
+    newPassword: string
+  ): Promise<void> {
     try {
       if (!supabaseAdmin) {
         throw new Error("Admin privileges required for direct password reset");
@@ -1167,25 +1174,27 @@ export const visitHelpers = {
       }
 
       console.log("✅ Visit created successfully:", visit);
-      
+
       // DISABLED: Manual points calculation to prevent duplication with database triggers
       // Database triggers will automatically handle member stats and hairstylist revenue updates
-      console.log("🔄 Database trigger will handle member/hairstylist stats updates automatically");
-      
+      console.log(
+        "🔄 Database trigger will handle member/hairstylist stats updates automatically"
+      );
+
       // Optional: Verify that triggers are working by checking updated data after a brief delay
       setTimeout(async () => {
         try {
           const { data: updatedMember } = await supabaseAdmin
-            .from('members')
-            .select('membership_points, total_visits, total_spent')
-            .eq('id', visitData.member_id)
+            .from("members")
+            .select("membership_points, total_visits, total_spent")
+            .eq("id", visitData.member_id)
             .single();
           console.log("📊 Member stats after trigger update:", updatedMember);
         } catch (error) {
           console.log("⚠️ Could not verify member stats update:", error);
         }
       }, 1000);
-      
+
       return visit;
     } catch (error) {
       console.error("💥 Error creating visit:", error);
@@ -1574,25 +1583,27 @@ export const notesHelpers = {
   // Get notes for a member (both private notes by current hairstylist and public notes by others)
   async getNotesForMember(memberId: string, hairstylistId: string) {
     const client = await getSupabaseClient();
-    
+
     const { data, error } = await client
-      .from('personal_notes')
-      .select(`
+      .from("personal_notes")
+      .select(
+        `
         *,
         hairstylist:hairstylists(
           *,
           user_profile:user_profiles(full_name)
         )
-      `)
-      .eq('member_id', memberId)
+      `
+      )
+      .eq("member_id", memberId)
       .or(`hairstylist_id.eq.${hairstylistId},is_private.eq.false`)
-      .order('created_at', { ascending: false });
-      
+      .order("created_at", { ascending: false });
+
     if (error) {
-      console.error('Error fetching notes:', error);
+      console.error("Error fetching notes:", error);
       throw error;
     }
-    
+
     return data || [];
   },
 
@@ -1604,72 +1615,79 @@ export const notesHelpers = {
     is_private: boolean;
   }) {
     const client = await getSupabaseClient();
-    
+
     const { data, error } = await client
-      .from('personal_notes')
+      .from("personal_notes")
       .insert(noteData)
-      .select(`
+      .select(
+        `
         *,
         hairstylist:hairstylists(
           *,
           user_profile:user_profiles(full_name)
         )
-      `)
+      `
+      )
       .single();
-      
+
     if (error) {
-      console.error('Error creating note:', error);
+      console.error("Error creating note:", error);
       throw error;
     }
-    
+
     return data;
   },
 
   // Update an existing note
-  async updateNote(noteId: string, updates: {
-    note?: string;
-    is_private?: boolean;
-  }) {
+  async updateNote(
+    noteId: string,
+    updates: {
+      note?: string;
+      is_private?: boolean;
+    }
+  ) {
     const client = await getSupabaseClient();
-    
+
     const { data, error } = await client
-      .from('personal_notes')
+      .from("personal_notes")
       .update({
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', noteId)
-      .select(`
+      .eq("id", noteId)
+      .select(
+        `
         *,
         hairstylist:hairstylists(
           *,
           user_profile:user_profiles(full_name)
         )
-      `)
+      `
+      )
       .single();
-      
+
     if (error) {
-      console.error('Error updating note:', error);
+      console.error("Error updating note:", error);
       throw error;
     }
-    
+
     return data;
   },
 
   // Delete a note
   async deleteNote(noteId: string) {
     const client = await getSupabaseClient();
-    
+
     const { error } = await client
-      .from('personal_notes')
+      .from("personal_notes")
       .delete()
-      .eq('id', noteId);
-      
+      .eq("id", noteId);
+
     if (error) {
-      console.error('Error deleting note:', error);
+      console.error("Error deleting note:", error);
       throw error;
     }
-  }
+  },
 };
 
 // Member name helpers - uses admin client to bypass RLS issues
@@ -1680,32 +1698,32 @@ export const memberNameHelpers = {
       // Try with admin client first to bypass RLS
       if (supabaseAdmin) {
         const { data, error } = await supabaseAdmin
-          .from('user_profiles')
-          .select('full_name')
-          .eq('id', memberId)
+          .from("user_profiles")
+          .select("full_name")
+          .eq("id", memberId)
           .single();
-          
+
         if (!error && data?.full_name) {
           return data.full_name;
         }
       }
-      
+
       // Fallback to regular client
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('full_name')
-        .eq('id', memberId)
+        .from("user_profiles")
+        .select("full_name")
+        .eq("id", memberId)
         .single();
-        
+
       if (error) {
-        console.warn('Could not fetch member name:', error);
-        return 'Unknown Member';
+        console.warn("Could not fetch member name:", error);
+        return "Unknown Member";
       }
-      
-      return data?.full_name || 'Unknown Member';
+
+      return data?.full_name || "Unknown Member";
     } catch (err) {
-      console.error('Error fetching member name:', err);
-      return 'Unknown Member';
+      console.error("Error fetching member name:", err);
+      return "Unknown Member";
     }
   },
 
@@ -1715,44 +1733,44 @@ export const memberNameHelpers = {
       // Try with admin client first
       if (supabaseAdmin) {
         const { data, error } = await supabaseAdmin
-          .from('user_profiles')
-          .select('id, full_name')
-          .in('id', memberIds);
-          
+          .from("user_profiles")
+          .select("id, full_name")
+          .in("id", memberIds);
+
         if (!error && data) {
           return data.reduce((acc, profile) => {
-            acc[profile.id] = profile.full_name || 'Unknown Member';
+            acc[profile.id] = profile.full_name || "Unknown Member";
             return acc;
           }, {} as Record<string, string>);
         }
       }
-      
+
       // Fallback to regular client
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, full_name')
-        .in('id', memberIds);
-        
+        .from("user_profiles")
+        .select("id, full_name")
+        .in("id", memberIds);
+
       if (error) {
-        console.warn('Could not fetch member names:', error);
+        console.warn("Could not fetch member names:", error);
         // Return default names for all IDs
         return memberIds.reduce((acc, id) => {
-          acc[id] = 'Unknown Member';
+          acc[id] = "Unknown Member";
           return acc;
         }, {} as Record<string, string>);
       }
-      
+
       return data.reduce((acc, profile) => {
-        acc[profile.id] = profile.full_name || 'Unknown Member';
+        acc[profile.id] = profile.full_name || "Unknown Member";
         return acc;
       }, {} as Record<string, string>);
     } catch (err) {
-      console.error('Error fetching member names:', err);
+      console.error("Error fetching member names:", err);
       // Return default names for all IDs
       return memberIds.reduce((acc, id) => {
-        acc[id] = 'Unknown Member';
+        acc[id] = "Unknown Member";
         return acc;
       }, {} as Record<string, string>);
     }
-  }
+  },
 };

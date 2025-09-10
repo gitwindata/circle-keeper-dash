@@ -288,9 +288,9 @@ const MembershipLevelCard: React.FC<MembershipLevelCardProps> = ({
             <Calendar className="h-4 w-4 mr-2" />
             Book Visit
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex-1"
             onClick={onLeaveReview}
           >

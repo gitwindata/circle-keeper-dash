@@ -1,20 +1,48 @@
-import { useState, useEffect } from 'react';
-import { Review, ReviewFormData, ReviewType, Visit, Service, Hairstylist } from '../types';
-import { supabase } from '../lib/supabase';
-import { ServiceManager } from '../lib/service-manager';
-import { useAuth } from '../hooks/use-auth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star, MessageSquare, ThumbsUp, Calendar, User, Scissors, Building2, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { useState, useEffect } from "react";
+import {
+  Review,
+  ReviewFormData,
+  ReviewType,
+  Visit,
+  Service,
+  Hairstylist,
+} from "../types";
+import { supabase } from "../lib/supabase";
+import { ServiceManager } from "../lib/service-manager";
+import { useAuth } from "../hooks/use-auth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Star,
+  MessageSquare,
+  ThumbsUp,
+  Calendar,
+  User,
+  Scissors,
+  Building2,
+  EyeOff,
+} from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface ReviewSystemProps {
   visitId?: string;
@@ -30,20 +58,27 @@ interface VisitForReview extends Visit {
   reviews?: Review[];
 }
 
-const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '', onReviewSubmitted }: ReviewSystemProps) => {
+const ReviewSystem = ({
+  visitId,
+  memberId,
+  showSubmitForm = false,
+  className = "",
+  onReviewSubmitted,
+}: ReviewSystemProps) => {
   const { userProfile } = useAuth();
   const [visit, setVisit] = useState<VisitForReview | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [activeReviewType, setActiveReviewType] = useState<ReviewType>('service');
+  const [activeReviewType, setActiveReviewType] =
+    useState<ReviewType>("service");
   const [reviewForm, setReviewForm] = useState<ReviewFormData>({
-    visit_id: visitId || '',
-    review_type: 'service',
+    visit_id: visitId || "",
+    review_type: "service",
     rating: 5,
-    comment: '',
-    is_anonymous: false
+    comment: "",
+    is_anonymous: false,
   });
 
   useEffect(() => {
@@ -56,14 +91,15 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const loadVisitAndReviews = async () => {
     if (!visitId) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Load visit with related data
       const { data: visitData, error: visitError } = await supabase
-        .from('visits')
-        .select(`
+        .from("visits")
+        .select(
+          `
           *,
           visit_services(
             *,
@@ -74,20 +110,21 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
             user_profile:user_profiles(*)
           ),
           reviews(*)
-        `)
-        .eq('id', visitId)
+        `
+        )
+        .eq("id", visitId)
         .single();
 
       if (visitError) throw visitError;
-      
+
       setVisit(visitData);
       setReviews(visitData.reviews || []);
-      
+
       // Update form with visit ID
-      setReviewForm(prev => ({ ...prev, visit_id: visitId }));
+      setReviewForm((prev) => ({ ...prev, visit_id: visitId }));
     } catch (error: any) {
-      console.error('Failed to load visit:', error);
-      toast.error('Failed to load visit details');
+      console.error("Failed to load visit:", error);
+      toast.error("Failed to load visit details");
     } finally {
       setLoading(false);
     }
@@ -95,13 +132,14 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const loadMemberReviews = async () => {
     if (!memberId) return;
-    
+
     try {
       setLoading(true);
-      
+
       const { data, error } = await supabase
-        .from('reviews')
-        .select(`
+        .from("reviews")
+        .select(
+          `
           *,
           visit:visits(
             *,
@@ -114,15 +152,16 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
               user_profile:user_profiles(*)
             )
           )
-        `)
-        .eq('member_id', memberId)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .eq("member_id", memberId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setReviews(data || []);
     } catch (error: any) {
-      console.error('Failed to load reviews:', error);
-      toast.error('Failed to load reviews');
+      console.error("Failed to load reviews:", error);
+      toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
     }
@@ -130,65 +169,63 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const submitReview = async () => {
     if (!userProfile?.id) {
-      toast.error('Please log in to submit a review');
+      toast.error("Please log in to submit a review");
       return;
     }
 
     // For visit-specific reviews, visit_id is required
     // For general reviews, visit_id can be null
     if (visitId && !reviewForm.visit_id) {
-      toast.error('Missing visit information');
+      toast.error("Missing visit information");
       return;
     }
 
     if (reviewForm.rating < 1 || reviewForm.rating > 5) {
-      toast.error('Please select a rating between 1 and 5 stars');
+      toast.error("Please select a rating between 1 and 5 stars");
       return;
     }
 
     try {
       setSubmitting(true);
-      
-      const { error } = await supabase
-        .from('reviews')
-        .insert({
-          visit_id: reviewForm.visit_id || null,
-          member_id: userProfile.id,
-          review_type: reviewForm.review_type,
-          target_id: reviewForm.target_id || null,
-          rating: reviewForm.rating,
-          comment: reviewForm.comment || null,
-          is_anonymous: reviewForm.is_anonymous
-        });
+
+      const { error } = await supabase.from("reviews").insert({
+        visit_id: reviewForm.visit_id || null,
+        member_id: userProfile.id,
+        review_type: reviewForm.review_type,
+        target_id: reviewForm.target_id || null,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment || null,
+        is_anonymous: reviewForm.is_anonymous,
+      });
 
       if (error) throw error;
-      
-      toast.success('Review submitted successfully!');
+
+      toast.success("Review submitted successfully!");
       setIsDialogOpen(false);
-      
+
       // Reset form
       setReviewForm({
-        visit_id: visitId || '',
-        review_type: 'service',
+        visit_id: visitId || "",
+        review_type: "service",
         rating: 5,
-        comment: '',
-        is_anonymous: false
+        comment: "",
+        is_anonymous: false,
       });
-      
+
       // Reload reviews
       if (visitId) {
         await loadVisitAndReviews();
       } else if (memberId) {
         await loadMemberReviews();
       }
-      
+
       // Call the callback if provided
       if (onReviewSubmitted) {
         onReviewSubmitted();
       }
     } catch (error: any) {
-      console.error('Failed to submit review:', error);
-      toast.error(error.message || 'Failed to submit review');
+      console.error("Failed to submit review:", error);
+      toast.error(error.message || "Failed to submit review");
     } finally {
       setSubmitting(false);
     }
@@ -196,18 +233,22 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const openReviewForm = (type: ReviewType, targetId?: string) => {
     setActiveReviewType(type);
-    setReviewForm(prev => ({
+    setReviewForm((prev) => ({
       ...prev,
       review_type: type,
       target_id: targetId,
       rating: 5,
-      comment: '',
-      is_anonymous: false
+      comment: "",
+      is_anonymous: false,
     }));
     setIsDialogOpen(true);
   };
 
-  const renderStars = (rating: number, interactive = false, onRatingChange?: (rating: number) => void) => {
+  const renderStars = (
+    rating: number,
+    interactive = false,
+    onRatingChange?: (rating: number) => void
+  ) => {
     return (
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -215,11 +256,9 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
             key={star}
             className={`h-5 w-5 ${
               star <= rating
-                ? 'fill-yellow-400 text-yellow-400'
-                : 'text-gray-300'
-            } ${
-              interactive ? 'cursor-pointer hover:text-yellow-400' : ''
-            }`}
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
+            } ${interactive ? "cursor-pointer hover:text-yellow-400" : ""}`}
             onClick={() => interactive && onRatingChange?.(star)}
           />
         ))}
@@ -229,11 +268,11 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const getReviewTypeIcon = (type: ReviewType) => {
     switch (type) {
-      case 'service':
+      case "service":
         return <Scissors className="h-4 w-4" />;
-      case 'hairstylist':
+      case "hairstylist":
         return <User className="h-4 w-4" />;
-      case 'barbershop':
+      case "barbershop":
         return <Building2 className="h-4 w-4" />;
       default:
         return <MessageSquare className="h-4 w-4" />;
@@ -242,21 +281,22 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
 
   const getReviewTypeColor = (type: ReviewType) => {
     switch (type) {
-      case 'service':
-        return 'bg-blue-100 text-blue-800';
-      case 'hairstylist':
-        return 'bg-green-100 text-green-800';
-      case 'barbershop':
-        return 'bg-purple-100 text-purple-800';
+      case "service":
+        return "bg-blue-100 text-blue-800";
+      case "hairstylist":
+        return "bg-green-100 text-green-800";
+      case "barbershop":
+        return "bg-purple-100 text-purple-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const hasExistingReview = (type: ReviewType, targetId?: string) => {
-    return reviews.some(review => 
-      review.review_type === type && 
-      (targetId ? review.target_id === targetId : !review.target_id)
+    return reviews.some(
+      (review) =>
+        review.review_type === type &&
+        (targetId ? review.target_id === targetId : !review.target_id)
     );
   };
 
@@ -288,12 +328,17 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
               {/* Service Reviews */}
               {visit.visit_services?.map((visitService, index) => {
                 const service = visitService.service;
-                const hasReview = hasExistingReview('service', service.id);
-                
+                const hasReview = hasExistingReview("service", service.id);
+
                 return (
-                  <Card key={index} className={`cursor-pointer transition-colors ${
-                    hasReview ? 'bg-green-50 border-green-200' : 'hover:border-primary'
-                  }`}>
+                  <Card
+                    key={index}
+                    className={`cursor-pointer transition-colors ${
+                      hasReview
+                        ? "bg-green-50 border-green-200"
+                        : "hover:border-primary"
+                    }`}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium text-sm">{service.name}</h4>
@@ -305,85 +350,109 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                           <Badge variant="outline">Rate</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600 mb-3">{service.description}</p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        {service.description}
+                      </p>
                       <Button
                         size="sm"
-                        variant={hasReview ? 'outline' : 'default'}
-                        onClick={() => openReviewForm('service', service.id)}
+                        variant={hasReview ? "outline" : "default"}
+                        onClick={() => openReviewForm("service", service.id)}
                         disabled={hasReview}
                         className="w-full"
                       >
                         <Scissors className="h-4 w-4 mr-2" />
-                        {hasReview ? 'Already Reviewed' : 'Rate Service'}
+                        {hasReview ? "Already Reviewed" : "Rate Service"}
                       </Button>
                     </CardContent>
                   </Card>
                 );
               })}
-              
+
               {/* Hairstylist Review */}
               {visit.hairstylist && (
-                <Card className={`cursor-pointer transition-colors ${
-                  hasExistingReview('hairstylist', visit.hairstylist.id) 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'hover:border-primary'
-                }`}>
+                <Card
+                  className={`cursor-pointer transition-colors ${
+                    hasExistingReview("hairstylist", visit.hairstylist.id)
+                      ? "bg-green-50 border-green-200"
+                      : "hover:border-primary"
+                  }`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={visit.hairstylist.user_profile?.avatar_url} />
+                        <AvatarImage
+                          src={visit.hairstylist.user_profile?.avatar_url}
+                        />
                         <AvatarFallback>
-                          {visit.hairstylist.user_profile?.full_name?.[0] || 'H'}
+                          {visit.hairstylist.user_profile?.full_name?.[0] ||
+                            "H"}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{visit.hairstylist.user_profile?.full_name}</p>
-                        <p className="text-xs text-gray-600">Your Hairstylist</p>
+                        <p className="font-medium text-sm">
+                          {visit.hairstylist.user_profile?.full_name}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Your Hairstylist
+                        </p>
                       </div>
                     </div>
                     <Button
                       size="sm"
-                      variant={hasExistingReview('hairstylist', visit.hairstylist.id) ? 'outline' : 'default'}
-                      onClick={() => openReviewForm('hairstylist', visit.hairstylist.id)}
-                      disabled={hasExistingReview('hairstylist', visit.hairstylist.id)}
+                      variant={
+                        hasExistingReview("hairstylist", visit.hairstylist.id)
+                          ? "outline"
+                          : "default"
+                      }
+                      onClick={() =>
+                        openReviewForm("hairstylist", visit.hairstylist.id)
+                      }
+                      disabled={hasExistingReview(
+                        "hairstylist",
+                        visit.hairstylist.id
+                      )}
                       className="w-full"
                     >
                       <User className="h-4 w-4 mr-2" />
-                      {hasExistingReview('hairstylist', visit.hairstylist.id) 
-                        ? 'Already Reviewed' 
-                        : 'Rate Hairstylist'
-                      }
+                      {hasExistingReview("hairstylist", visit.hairstylist.id)
+                        ? "Already Reviewed"
+                        : "Rate Hairstylist"}
                     </Button>
                   </CardContent>
                 </Card>
               )}
-              
+
               {/* Barbershop Review */}
-              <Card className={`cursor-pointer transition-colors ${
-                hasExistingReview('barbershop') 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'hover:border-primary'
-              }`}>
+              <Card
+                className={`cursor-pointer transition-colors ${
+                  hasExistingReview("barbershop")
+                    ? "bg-green-50 border-green-200"
+                    : "hover:border-primary"
+                }`}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Building2 className="h-8 w-8 text-purple-600 bg-purple-100 rounded-full p-2" />
                     <div>
                       <p className="font-medium text-sm">Haijoel Men's Salon</p>
-                      <p className="text-xs text-gray-600">Overall Experience</p>
+                      <p className="text-xs text-gray-600">
+                        Overall Experience
+                      </p>
                     </div>
                   </div>
                   <Button
                     size="sm"
-                    variant={hasExistingReview('barbershop') ? 'outline' : 'default'}
-                    onClick={() => openReviewForm('barbershop')}
-                    disabled={hasExistingReview('barbershop')}
+                    variant={
+                      hasExistingReview("barbershop") ? "outline" : "default"
+                    }
+                    onClick={() => openReviewForm("barbershop")}
+                    disabled={hasExistingReview("barbershop")}
                     className="w-full"
                   >
                     <Building2 className="h-4 w-4 mr-2" />
-                    {hasExistingReview('barbershop') 
-                      ? 'Already Reviewed' 
-                      : 'Rate Barbershop'
-                    }
+                    {hasExistingReview("barbershop")
+                      ? "Already Reviewed"
+                      : "Rate Barbershop"}
                   </Button>
                 </CardContent>
               </Card>
@@ -398,7 +467,7 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
-              {visitId ? 'Your Reviews for This Visit' : 'Your Reviews'}
+              {visitId ? "Your Reviews for This Visit" : "Your Reviews"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -409,13 +478,16 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge className={getReviewTypeColor(review.review_type)}>
+                          <Badge
+                            className={getReviewTypeColor(review.review_type)}
+                          >
                             {getReviewTypeIcon(review.review_type)}
-                            {review.review_type.charAt(0).toUpperCase() + review.review_type.slice(1)}
+                            {review.review_type.charAt(0).toUpperCase() +
+                              review.review_type.slice(1)}
                           </Badge>
-                          
+
                           {renderStars(review.rating)}
-                          
+
                           {review.is_anonymous && (
                             <Badge variant="outline" className="text-xs">
                               <EyeOff className="h-3 w-3 mr-1" />
@@ -423,20 +495,26 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                             </Badge>
                           )}
                         </div>
-                        
+
                         {review.comment && (
-                          <p className="text-sm text-gray-700 mb-2">{review.comment}</p>
+                          <p className="text-sm text-gray-700 mb-2">
+                            {review.comment}
+                          </p>
                         )}
-                        
+
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {format(new Date(review.created_at), 'MMM d, yyyy')}
+                            {format(new Date(review.created_at), "MMM d, yyyy")}
                           </span>
-                          
+
                           {review.visit && (
                             <span>
-                              Visit on {format(new Date(review.visit.visit_date), 'MMM d, yyyy')}
+                              Visit on{" "}
+                              {format(
+                                new Date(review.visit.visit_date),
+                                "MMM d, yyyy"
+                              )}
                             </span>
                           )}
                         </div>
@@ -470,17 +548,19 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                   <div className="text-center">
                     <Building2 className="h-8 w-8 mx-auto mb-2 text-blue-600" />
                     <h4 className="font-medium text-gray-900">Salon Overall</h4>
-                    <p className="text-sm text-gray-600 mt-1">Rate the salon experience</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <p className="text-sm text-gray-600 mt-1">
+                      Rate the salon experience
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-3 w-full"
                       onClick={() => {
-                        setActiveReviewType('barbershop');
-                        setReviewForm(prev => ({
+                        setActiveReviewType("barbershop");
+                        setReviewForm((prev) => ({
                           ...prev,
-                          review_type: 'barbershop',
-                          target_id: undefined
+                          review_type: "barbershop",
+                          target_id: undefined,
                         }));
                         setIsDialogOpen(true);
                       }}
@@ -498,17 +578,19 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                   <div className="text-center">
                     <Scissors className="h-8 w-8 mx-auto mb-2 text-green-600" />
                     <h4 className="font-medium text-gray-900">Services</h4>
-                    <p className="text-sm text-gray-600 mt-1">Rate our services in general</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <p className="text-sm text-gray-600 mt-1">
+                      Rate our services in general
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-3 w-full"
                       onClick={() => {
-                        setActiveReviewType('service');
-                        setReviewForm(prev => ({
+                        setActiveReviewType("service");
+                        setReviewForm((prev) => ({
                           ...prev,
-                          review_type: 'service',
-                          target_id: undefined
+                          review_type: "service",
+                          target_id: undefined,
                         }));
                         setIsDialogOpen(true);
                       }}
@@ -526,17 +608,19 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                   <div className="text-center">
                     <User className="h-8 w-8 mx-auto mb-2 text-purple-600" />
                     <h4 className="font-medium text-gray-900">Staff</h4>
-                    <p className="text-sm text-gray-600 mt-1">Rate our staff service</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <p className="text-sm text-gray-600 mt-1">
+                      Rate our staff service
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-3 w-full"
                       onClick={() => {
-                        setActiveReviewType('hairstylist');
-                        setReviewForm(prev => ({
+                        setActiveReviewType("hairstylist");
+                        setReviewForm((prev) => ({
                           ...prev,
-                          review_type: 'hairstylist',
-                          target_id: undefined
+                          review_type: "hairstylist",
+                          target_id: undefined,
                         }));
                         setIsDialogOpen(true);
                       }}
@@ -557,12 +641,13 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
         <Card>
           <CardContent className="p-8 text-center">
             <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Reviews Yet</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Reviews Yet
+            </h3>
             <p className="text-gray-600">
-              {visitId 
+              {visitId
                 ? "You haven submitted any reviews for this visit yet."
-                : "You haven submitted any reviews yet."
-              }
+                : "You haven submitted any reviews yet."}
             </p>
           </CardContent>
         </Card>
@@ -574,19 +659,23 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {getReviewTypeIcon(activeReviewType)}
-              Rate {activeReviewType.charAt(0).toUpperCase() + activeReviewType.slice(1)}
+              Rate{" "}
+              {activeReviewType.charAt(0).toUpperCase() +
+                activeReviewType.slice(1)}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Rating */}
             <div className="space-y-2">
               <Label>Rating *</Label>
               <div className="flex items-center gap-2">
-                {renderStars(reviewForm.rating, true, (rating) => 
-                  setReviewForm(prev => ({ ...prev, rating }))
+                {renderStars(reviewForm.rating, true, (rating) =>
+                  setReviewForm((prev) => ({ ...prev, rating }))
                 )}
-                <span className="text-sm text-gray-600">({reviewForm.rating}/5)</span>
+                <span className="text-sm text-gray-600">
+                  ({reviewForm.rating}/5)
+                </span>
               </div>
             </div>
 
@@ -596,7 +685,12 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
               <Textarea
                 id="comment"
                 value={reviewForm.comment}
-                onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({
+                    ...prev,
+                    comment: e.target.value,
+                  }))
+                }
                 placeholder={`Share your thoughts about the ${activeReviewType}...`}
                 rows={3}
               />
@@ -615,11 +709,13 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                   </p>
                 </div>
               </div>
-              
+
               <Switch
                 id="anonymous"
                 checked={reviewForm.is_anonymous}
-                onCheckedChange={(checked) => setReviewForm(prev => ({ ...prev, is_anonymous: checked }))}
+                onCheckedChange={(checked) =>
+                  setReviewForm((prev) => ({ ...prev, is_anonymous: checked }))
+                }
               />
             </div>
 
@@ -629,7 +725,7 @@ const ReviewSystem = ({ visitId, memberId, showSubmitForm = false, className = '
                 Cancel
               </Button>
               <Button onClick={submitReview} disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Review'}
+                {submitting ? "Submitting..." : "Submit Review"}
               </Button>
             </div>
           </div>

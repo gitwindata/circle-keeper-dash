@@ -127,7 +127,9 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
   const [afterPhotos, setAfterPhotos] = useState<PhotoUpload[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: Member & Services, 2: Photos & Notes, 3: Review
-  const [memberNotesHistory, setMemberNotesHistory] = useState<MemberNote[]>([]);
+  const [memberNotesHistory, setMemberNotesHistory] = useState<MemberNote[]>(
+    []
+  );
   const [loadingNotesHistory, setLoadingNotesHistory] = useState(false);
   const [showNotesHistory, setShowNotesHistory] = useState(false);
   const [memberVisitHistory, setMemberVisitHistory] = useState<any[]>([]);
@@ -152,26 +154,33 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
     loadServices();
   }, []);
 
-  const loadNotesHistory = useCallback(async (memberId: string) => {
-    try {
-      setLoadingNotesHistory(true);
-      const notes = await notesHelpers.getNotesForMember(memberId, hairstylistId);
-      setMemberNotesHistory(notes);
-    } catch (error) {
-      console.error('Error loading notes history:', error);
-      // Don't show error toast for notes loading failure
-    } finally {
-      setLoadingNotesHistory(false);
-    }
-  }, [hairstylistId]);
+  const loadNotesHistory = useCallback(
+    async (memberId: string) => {
+      try {
+        setLoadingNotesHistory(true);
+        const notes = await notesHelpers.getNotesForMember(
+          memberId,
+          hairstylistId
+        );
+        setMemberNotesHistory(notes);
+      } catch (error) {
+        console.error("Error loading notes history:", error);
+        // Don't show error toast for notes loading failure
+      } finally {
+        setLoadingNotesHistory(false);
+      }
+    },
+    [hairstylistId]
+  );
 
   const loadVisitHistory = useCallback(async (memberId: string) => {
     try {
       setLoadingVisitHistory(true);
-      const client = await import("../lib/supabase").then(m => m.supabase);
+      const client = await import("../lib/supabase").then((m) => m.supabase);
       const { data, error } = await client
-        .from('visits')
-        .select(`
+        .from("visits")
+        .select(
+          `
           id,
           visit_date,
           total_price,
@@ -187,18 +196,19 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
               base_price
             )
           )
-        `)
-        .eq('member_id', memberId)
-        .order('visit_date', { ascending: false })
+        `
+        )
+        .eq("member_id", memberId)
+        .order("visit_date", { ascending: false })
         .limit(10); // Batasi 10 visit terakhir
 
       if (error) {
-        console.error('Error loading visit history:', error);
+        console.error("Error loading visit history:", error);
       } else {
-      setMemberVisitHistory(data || []);
+        setMemberVisitHistory(data || []);
       }
     } catch (error) {
-      console.error('Error loading visit history:', error);
+      console.error("Error loading visit history:", error);
     } finally {
       setLoadingVisitHistory(false);
     }
@@ -208,7 +218,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
     if (selectedMemberId) {
       const member = assignedMembers.find((m) => m.id === selectedMemberId);
       setSelectedMember(member || null);
-      
+
       // Load notes and visit history for the selected member
       loadNotesHistory(selectedMemberId);
       loadVisitHistory(selectedMemberId);
@@ -373,7 +383,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         finalPrice: totals.finalPrice,
         pointsEarned: totals.pointsEarned,
       });
-      
+
       const newVisit = await visitHelpers.createVisit(visitData);
       const visitId = newVisit.id;
 
@@ -381,7 +391,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         visitId,
         memberId: visitData.member_id,
         finalPrice: visitData.final_price,
-        visit: newVisit
+        visit: newVisit,
       });
 
       // Upload photos if any
@@ -434,7 +444,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
             hairstylist_id: hairstylistId,
             member_id: selectedMember.id,
             note: personalNotes.trim(),
-            is_private: true
+            is_private: true,
           });
           console.log("✅ Personal notes saved successfully!");
         } catch (notesError) {
@@ -449,11 +459,13 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
         // Direct query to members table instead of using getMemberWithProfile
         const { supabase } = await import("../lib/supabase");
         const { data: memberData, error: memberError } = await supabase
-          .from('members')
-          .select('id, membership_points, total_visits, total_spent, last_visit_date, membership_tier')
-          .eq('id', visitData.member_id)
+          .from("members")
+          .select(
+            "id, membership_points, total_visits, total_spent, last_visit_date, membership_tier"
+          )
+          .eq("id", visitData.member_id)
           .single();
-          
+
         if (memberError) {
           console.error("⚠️ Failed to verify member points:", memberError);
         } else {
@@ -463,7 +475,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
             total_visits: memberData?.total_visits,
             total_spent: memberData?.total_spent,
             last_visit_date: memberData?.last_visit_date,
-            membership_tier: memberData?.membership_tier
+            membership_tier: memberData?.membership_tier,
           });
         }
       } catch (verificationError) {
@@ -480,7 +492,10 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
       onVisitRecorded();
     } catch (error) {
       console.error("💥 Failed to record visit:", error);
-      toast.error("Failed to record visit: " + (error instanceof Error ? error.message : "Unknown error"));
+      toast.error(
+        "Failed to record visit: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -617,7 +632,9 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowNotesHistory(!showNotesHistory)}
+                            onClick={() =>
+                              setShowNotesHistory(!showNotesHistory)
+                            }
                           >
                             {showNotesHistory ? (
                               <EyeOff className="h-4 w-4" />
@@ -631,32 +648,50 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                       {loadingNotesHistory ? (
                         <div className="flex items-center justify-center py-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                          <span className="ml-2 text-xs text-muted-foreground">Loading...</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            Loading...
+                          </span>
                         </div>
                       ) : memberNotesHistory.length === 0 ? (
-                        <p className="text-sm text-gray-500">No previous notes</p>
+                        <p className="text-sm text-gray-500">
+                          No previous notes
+                        </p>
                       ) : showNotesHistory ? (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {memberNotesHistory.slice(0, 3).map((note) => (
-                            <div key={note.id} className="text-xs border-b pb-2 last:border-b-0">
+                            <div
+                              key={note.id}
+                              className="text-xs border-b pb-2 last:border-b-0"
+                            >
                               <div className="flex items-center justify-between mb-1">
                                 <span className="font-medium text-gray-700">
-                                  {note.hairstylist?.user_profile?.full_name || 'Unknown'}
+                                  {note.hairstylist?.user_profile?.full_name ||
+                                    "Unknown"}
                                 </span>
                                 <span className="text-gray-400">
-                                  {new Date(note.created_at).toLocaleDateString('id-ID')}
+                                  {new Date(note.created_at).toLocaleDateString(
+                                    "id-ID"
+                                  )}
                                 </span>
                               </div>
-                              <p className="text-gray-600 line-clamp-2">{note.note}</p>
+                              <p className="text-gray-600 line-clamp-2">
+                                {note.note}
+                              </p>
                             </div>
                           ))}
                           {memberNotesHistory.length > 3 && (
-                            <p className="text-xs text-blue-600">+{memberNotesHistory.length - 3} more notes</p>
+                            <p className="text-xs text-blue-600">
+                              +{memberNotesHistory.length - 3} more notes
+                            </p>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm text-blue-600 cursor-pointer" onClick={() => setShowNotesHistory(true)}>
-                          {memberNotesHistory.length} notes available - click to view
+                        <p
+                          className="text-sm text-blue-600 cursor-pointer"
+                          onClick={() => setShowNotesHistory(true)}
+                        >
+                          {memberNotesHistory.length} notes available - click to
+                          view
                         </p>
                       )}
                     </div>
@@ -672,7 +707,9 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowVisitHistory(!showVisitHistory)}
+                            onClick={() =>
+                              setShowVisitHistory(!showVisitHistory)
+                            }
                           >
                             {showVisitHistory ? (
                               <EyeOff className="h-4 w-4" />
@@ -686,20 +723,29 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                       {loadingVisitHistory ? (
                         <div className="flex items-center justify-center py-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                          <span className="ml-2 text-xs text-muted-foreground">Loading...</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            Loading...
+                          </span>
                         </div>
                       ) : memberVisitHistory.length === 0 ? (
-                        <p className="text-sm text-gray-500">No previous visits</p>
+                        <p className="text-sm text-gray-500">
+                          No previous visits
+                        </p>
                       ) : showVisitHistory ? (
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {memberVisitHistory.slice(0, 3).map((visit) => (
-                            <div key={visit.id} className="text-xs border-b pb-2 last:border-b-0">
+                            <div
+                              key={visit.id}
+                              className="text-xs border-b pb-2 last:border-b-0"
+                            >
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-gray-400 text-xs">
-                                  {new Date(visit.visit_date).toLocaleDateString('id-ID', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric'
+                                  {new Date(
+                                    visit.visit_date
+                                  ).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
                                   })}
                                 </span>
                                 <span className="text-gray-500 text-xs">
@@ -707,11 +753,24 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                                 </span>
                               </div>
                               <div className="space-y-1">
-                                {visit.visit_services?.map((vs: {service: {name: string, category: string}}, idx: number) => (
-                                  <span key={idx} className="inline-block text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1">
-                                    {vs.service?.name}
-                                  </span>
-                                ))}
+                                {visit.visit_services?.map(
+                                  (
+                                    vs: {
+                                      service: {
+                                        name: string;
+                                        category: string;
+                                      };
+                                    },
+                                    idx: number
+                                  ) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-block text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1"
+                                    >
+                                      {vs.service?.name}
+                                    </span>
+                                  )
+                                )}
                               </div>
                               {visit.hairstylist_notes && (
                                 <p className="text-gray-600 text-xs mt-1 italic line-clamp-1">
@@ -721,26 +780,48 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                             </div>
                           ))}
                           {memberVisitHistory.length > 3 && (
-                            <p className="text-xs text-blue-600">+{memberVisitHistory.length - 3} more visits</p>
+                            <p className="text-xs text-blue-600">
+                              +{memberVisitHistory.length - 3} more visits
+                            </p>
                           )}
                         </div>
                       ) : (
                         <div className="text-sm">
-                          <p className="text-gray-600 mb-1">{memberVisitHistory.length} visits available</p>
+                          <p className="text-gray-600 mb-1">
+                            {memberVisitHistory.length} visits available
+                          </p>
                           {memberVisitHistory.length > 0 && (
                             <div className="space-y-1">
-                              <p className="text-xs text-gray-500">Recent services:</p>
+                              <p className="text-xs text-gray-500">
+                                Recent services:
+                              </p>
                               <div className="flex flex-wrap gap-1">
-                                {memberVisitHistory[0]?.visit_services?.slice(0, 3).map((vs: {service: {name: string}}, idx: number) => (
-                                  <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                    {vs.service?.name}
+                                {memberVisitHistory[0]?.visit_services
+                                  ?.slice(0, 3)
+                                  .map(
+                                    (
+                                      vs: { service: { name: string } },
+                                      idx: number
+                                    ) => (
+                                      <span
+                                        key={idx}
+                                        className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                                      >
+                                        {vs.service?.name}
+                                      </span>
+                                    )
+                                  )}
+                                {memberVisitHistory[0]?.visit_services?.length >
+                                  3 && (
+                                  <span className="text-xs text-gray-500">
+                                    ...
                                   </span>
-                                ))}
-                                {memberVisitHistory[0]?.visit_services?.length > 3 && (
-                                  <span className="text-xs text-gray-500">...</span>
                                 )}
                               </div>
-                              <p className="text-xs text-blue-600 cursor-pointer mt-1" onClick={() => setShowVisitHistory(true)}>
+                              <p
+                                className="text-xs text-blue-600 cursor-pointer mt-1"
+                                onClick={() => setShowVisitHistory(true)}
+                              >
                                 Click to view all visits
                               </p>
                             </div>
@@ -1064,9 +1145,9 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
               </CardTitle>
               <CardDescription>
                 Add any notes about this visit
-                {selectedMember && memberNotesHistory.length > 0 && showNotesHistory && (
-                  <span> and view previous notes</span>
-                )}
+                {selectedMember &&
+                  memberNotesHistory.length > 0 &&
+                  showNotesHistory && <span> and view previous notes</span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1075,38 +1156,55 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    <span className="font-medium">Previous Notes for {selectedMember.user_profile?.full_name}</span>
+                    <span className="font-medium">
+                      Previous Notes for{" "}
+                      {selectedMember.user_profile?.full_name}
+                    </span>
                   </div>
-                  
+
                   {loadingNotesHistory ? (
                     <div className="flex items-center justify-center py-4">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                      <span className="ml-2 text-sm text-muted-foreground">Loading notes...</span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Loading notes...
+                      </span>
                     </div>
                   ) : memberNotesHistory.length > 0 ? (
                     <div className="max-h-60 overflow-y-auto border rounded-lg">
                       <div className="space-y-3 p-4">
                         {memberNotesHistory.map((note) => (
-                          <div key={note.id} className="border-b pb-3 last:border-b-0">
+                          <div
+                            key={note.id}
+                            className="border-b pb-3 last:border-b-0"
+                          >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">
-                                  {note.hairstylist?.user_profile?.full_name || 'Unknown Hairstylist'}
+                                  {note.hairstylist?.user_profile?.full_name ||
+                                    "Unknown Hairstylist"}
                                 </span>
                                 {note.hairstylist_id === hairstylistId ? (
-                                  <Badge variant="default" className="text-xs">Your Note</Badge>
+                                  <Badge variant="default" className="text-xs">
+                                    Your Note
+                                  </Badge>
                                 ) : (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {note.is_private ? 'Private' : 'Shared'}
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {note.is_private ? "Private" : "Shared"}
                                   </Badge>
                                 )}
                               </div>
                               <span className="text-xs text-muted-foreground">
-                                {new Date(note.created_at).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
+                                {new Date(note.created_at).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
                               </span>
                             </div>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -1121,7 +1219,7 @@ const VisitRecordingForm: React.FC<VisitRecordingFormProps> = ({
                       No previous notes found for this member
                     </div>
                   )}
-                  
+
                   <div className="border-t pt-4">
                     <span className="text-sm font-medium">Add New Notes:</span>
                   </div>
