@@ -450,6 +450,8 @@ export const memberHelpers = {
       preferred_services?: string[];
     }
   ): Promise<void> {
+    const client = await getSupabaseClient();
+
     // Update user profile
     const profileUpdates = {
       full_name: updates.full_name,
@@ -458,7 +460,7 @@ export const memberHelpers = {
       instagram_handle: updates.instagram_handle,
     };
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await client
       .from("user_profiles")
       .update(profileUpdates)
       .eq("id", memberId);
@@ -471,7 +473,7 @@ export const memberHelpers = {
       preferred_services: updates.preferred_services,
     };
 
-    const { error: memberError } = await supabase
+    const { error: memberError } = await client
       .from("members")
       .update(memberUpdates)
       .eq("id", memberId);
@@ -481,8 +483,10 @@ export const memberHelpers = {
 
   // Delete member
   async deleteMember(memberId: string): Promise<void> {
+    const client = await getSupabaseClient();
+    
     // Delete member record (this will cascade to user_profiles due to FK)
-    const { error } = await supabase
+    const { error } = await client
       .from("user_profiles")
       .delete()
       .eq("id", memberId);
@@ -885,6 +889,7 @@ export const hairstylistHelpers = {
     id: string,
     updateData: {
       full_name?: string;
+      email?: string;
       phone?: string;
       specialties?: string[];
       experience_years?: number;
@@ -897,11 +902,13 @@ export const hairstylistHelpers = {
     // Update user profile if profile data is provided
     if (
       updateData.full_name ||
+      updateData.email ||
       updateData.phone ||
       updateData.status !== undefined
     ) {
       const profileUpdate: Record<string, unknown> = {};
       if (updateData.full_name) profileUpdate.full_name = updateData.full_name;
+      if (updateData.email) profileUpdate.email = updateData.email;
       if (updateData.phone) profileUpdate.phone = updateData.phone;
       if (updateData.status !== undefined)
         profileUpdate.is_active = updateData.status === "active";
@@ -912,6 +919,22 @@ export const hairstylistHelpers = {
         .eq("id", id);
 
       if (profileError) throw profileError;
+
+      // If email is being updated, also update the auth user email
+      if (updateData.email && supabaseAdmin) {
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+          id,
+          {
+            email: updateData.email,
+          }
+        );
+
+        if (authError) {
+          console.error("Warning: Could not update auth email:", authError);
+          // Don't throw error here as profile update succeeded
+          // This allows the update to continue even if auth email update fails
+        }
+      }
     }
 
     // Update hairstylist record
@@ -943,40 +966,26 @@ export const hairstylistHelpers = {
   async deactivateHairstylist(id: string) {
     const client = await getSupabaseClient();
 
-    // Update both user profile and hairstylist status
+    // Update user profile to mark as inactive
     const { error: profileError } = await client
       .from("user_profiles")
       .update({ is_active: false })
       .eq("id", id);
 
     if (profileError) throw profileError;
-
-    const { error: hairstylistError } = await client
-      .from("hairstylists")
-      .update({ status: "inactive" })
-      .eq("id", id);
-
-    if (hairstylistError) throw hairstylistError;
   },
 
   // Activate hairstylist
   async activateHairstylist(id: string) {
     const client = await getSupabaseClient();
 
-    // Update both user profile and hairstylist status
+    // Update user profile to mark as active
     const { error: profileError } = await client
       .from("user_profiles")
       .update({ is_active: true })
       .eq("id", id);
 
     if (profileError) throw profileError;
-
-    const { error: hairstylistError } = await client
-      .from("hairstylists")
-      .update({ status: "active" })
-      .eq("id", id);
-
-    if (hairstylistError) throw hairstylistError;
   },
 
   // Get hairstylist's assigned members

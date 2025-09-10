@@ -177,7 +177,14 @@ const Members = () => {
     if (!editingMember) return;
 
     try {
-      // TODO: Implement update member function
+      await memberHelpers.updateMember(editingMember.id, {
+        full_name: formData.full_name,
+        phone: formData.phone,
+        whatsapp_number: formData.whatsapp_number,
+        instagram_handle: formData.instagram_handle,
+        notes: formData.notes,
+      });
+
       toast.success(`${formData.full_name} has been updated successfully.`);
       resetForm();
       setEditingMember(null);
@@ -194,18 +201,17 @@ const Members = () => {
     if (
       member &&
       confirm(
-        `Are you sure you want to delete ${member.user_profile.full_name}?`
+        `Are you sure you want to delete ${member.user_profile?.full_name}?`
       )
     ) {
       try {
-        // TODO: Implement delete member function
-        setMembers((prev) => prev.filter((m) => m.id !== memberId));
-        setFilteredMembers((prev) => prev.filter((m) => m.id !== memberId));
+        await memberHelpers.deleteMember(memberId);
         toast.success(
           `${
             member.user_profile?.full_name || "Member"
           } has been removed from The Circle.`
         );
+        await loadMembers(); // Reload data
       } catch (error: unknown) {
         console.error("Error deleting member:", error);
         toast.error("Failed to delete member. Please try again.");
@@ -395,6 +401,7 @@ const Members = () => {
                         handleInputChange("email", e.target.value)
                       }
                       required
+                      disabled={!!editingMember} // Cannot change email when editing
                     />
                   </div>
                 </div>

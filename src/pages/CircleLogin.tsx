@@ -37,8 +37,8 @@ const CircleLogin = () => {
       <Card className="w-full max-w-md bg-gray-800 border-gray-700">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-black-600/20 rounded-full">
-              <img src="/hms logo white.svg" alt="HMS Logo" className="h-36 w-36" />
+            <div className="p-3 bg-white-600/20 rounded-full">
+              <img src="/hms logo black.svg" alt="HMS Logo" className="h-42 w-42" />
             </div>
           </div>
           <CardTitle className="text-2xl font-light text-white">The Circle</CardTitle>

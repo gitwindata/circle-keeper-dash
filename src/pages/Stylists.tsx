@@ -228,6 +228,7 @@ const Hairstylists = () => {
     if (
       !selectedHairstylist ||
       !editHairstylist.full_name ||
+      !editHairstylist.email ||
       !editHairstylist.phone
     ) {
       toast({
@@ -236,6 +237,29 @@ const Hairstylists = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editHairstylist.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show warning if email is being changed
+    const isEmailChanged = editHairstylist.email !== selectedHairstylist.user_profile.email;
+    if (isEmailChanged) {
+      const confirmEmailChange = confirm(
+        `⚠️ WARNING: Changing the email from "${selectedHairstylist.user_profile.email}" to "${editHairstylist.email}" will affect the hairstylist's login credentials.\n\nThe hairstylist will need to use the new email address to log in.\n\nDo you want to proceed with this change?`
+      );
+      
+      if (!confirmEmailChange) {
+        return;
+      }
     }
 
     try {
@@ -247,6 +271,7 @@ const Hairstylists = () => {
 
       await hairstylistHelpers.updateHairstylist(selectedHairstylist.id, {
         full_name: editHairstylist.full_name,
+        email: editHairstylist.email,
         phone: editHairstylist.phone,
         specialties: specialtiesArray,
         experience_years: editHairstylist.experience_years,
@@ -258,7 +283,7 @@ const Hairstylists = () => {
 
       toast({
         title: "Success",
-        description: `${editHairstylist.full_name} has been updated successfully.`,
+        description: `${editHairstylist.full_name} has been updated successfully.${isEmailChanged ? ' Please inform them of their new login email.' : ''}`,
       });
 
       // Reload data
@@ -786,6 +811,28 @@ const Hairstylists = () => {
               {selectedHairstylist?.user_profile.full_name}.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Email Change Warning Box */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-amber-800">
+                  Important: Email Address Changes
+                </h3>
+                <div className="mt-2 text-sm text-amber-700">
+                  <p>
+                    Changing the email address will affect the hairstylist's login credentials. 
+                    They will need to use the new email address to access their account.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -803,7 +850,7 @@ const Hairstylists = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
+                <Label htmlFor="edit-email">Email *</Label>
                 <Input
                   id="edit-email"
                   type="email"
@@ -815,8 +862,14 @@ const Hairstylists = () => {
                       email: e.target.value,
                     }))
                   }
-                  disabled
+                  className="border-amber-200 focus:border-amber-400"
                 />
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  Changes will affect login credentials
+                </p>
               </div>
             </div>
 

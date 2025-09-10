@@ -197,7 +197,7 @@ const CircleDashboard = () => {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/hms logo white.svg"
+              src="/hms logo black.svg"
               alt="HMS Logo"
               className="h-12 w-12"
             />
