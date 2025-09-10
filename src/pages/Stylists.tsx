@@ -100,6 +100,12 @@ const Hairstylists = () => {
     bio: "",
   });
 
+  const [resetPasswordData, setResetPasswordData] = useState({
+    newPassword: "",
+    confirmPassword: "",
+    resetMethod: "email" as "email" | "direct",
+  });
+
   // Load hairstylists data
   const loadHairstylists = async () => {
     try {
@@ -312,13 +318,62 @@ const Hairstylists = () => {
     }
   };
 
-  const handleResetPassword = (hairstylistId: string) => {
-    const hairstylist = hairstylists.find((s) => s.id === hairstylistId);
-    toast({
-      title: "Password Reset",
-      description: `Password reset link sent to ${hairstylist?.user_profile.email}`,
-    });
-    setIsResetPasswordDialogOpen(false);
+  const handleResetPassword = async () => {
+    if (!selectedHairstylist) return;
+
+    try {
+      setIsSubmitting(true);
+      
+      if (resetPasswordData.resetMethod === "email") {
+        // Send email reset link (existing functionality)
+        await hairstylistHelpers.sendPasswordResetEmail(selectedHairstylist.user_profile.email);
+        toast({
+          title: "Password Reset Email Sent",
+          description: `Reset link sent to ${selectedHairstylist.user_profile.email}`,
+        });
+      } else {
+        // Direct password reset
+        if (!resetPasswordData.newPassword || resetPasswordData.newPassword.length < 6) {
+          toast({
+            title: "Error",
+            description: "Password must be at least 6 characters long.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+          toast({
+            title: "Error",
+            description: "Passwords do not match.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        await hairstylistHelpers.resetPasswordDirect(selectedHairstylist.id, resetPasswordData.newPassword);
+        toast({
+          title: "Password Reset Successful",
+          description: `Password has been updated for ${selectedHairstylist.user_profile.full_name}`,
+        });
+      }
+      
+      setIsResetPasswordDialogOpen(false);
+      setResetPasswordData({
+        newPassword: "",
+        confirmPassword: "",
+        resetMethod: "email",
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const allSpecialties = [
@@ -852,31 +907,128 @@ const Hairstylists = () => {
         open={isResetPasswordDialogOpen}
         onOpenChange={setIsResetPasswordDialogOpen}
       >
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
             <DialogDescription>
-              Send password reset link to{" "}
-              {selectedHairstylist?.user_profile.full_name}?
+              Choose how to reset password for{" "}
+              {selectedHairstylist?.user_profile.full_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              A password reset link will be sent to:{" "}
-              <strong>{selectedHairstylist?.user_profile.email}</strong>
-            </p>
+          <div className="space-y-4 py-4">
+            {/* Reset Method Selection */}
+            <div className="space-y-3">
+              <Label>Reset Method</Label>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resetMethod"
+                    value="email"
+                    checked={resetPasswordData.resetMethod === "email"}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        resetMethod: e.target.value as "email" | "direct",
+                        newPassword: "",
+                        confirmPassword: "",
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">Send reset link via email</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resetMethod"
+                    value="direct"
+                    checked={resetPasswordData.resetMethod === "direct"}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        resetMethod: e.target.value as "email" | "direct",
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">Set new password directly</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Email Reset Info */}
+            {resetPasswordData.resetMethod === "email" && (
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  A password reset link will be sent to:{" "}
+                  <strong>{selectedHairstylist?.user_profile.email}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Direct Reset Form */}
+            {resetPasswordData.resetMethod === "direct" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="Enter new password (min. 6 characters)"
+                    value={resetPasswordData.newPassword}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        newPassword: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={resetPasswordData.confirmPassword}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        confirmPassword: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                {resetPasswordData.newPassword &&
+                  resetPasswordData.confirmPassword &&
+                  resetPasswordData.newPassword !== resetPasswordData.confirmPassword && (
+                    <p className="text-sm text-red-600">Passwords do not match</p>
+                  )}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
-              onClick={() => setIsResetPasswordDialogOpen(false)}
+              onClick={() => {
+                setIsResetPasswordDialogOpen(false);
+                setResetPasswordData({
+                  newPassword: "",
+                  confirmPassword: "",
+                  resetMethod: "email",
+                });
+              }}
             >
               Cancel
             </Button>
-            <Button
-              onClick={() => handleResetPassword(selectedHairstylist?.id || "")}
-            >
-              Send Reset Link
+            <Button onClick={handleResetPassword} disabled={isSubmitting}>
+              {isSubmitting && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              {resetPasswordData.resetMethod === "email"
+                ? "Send Reset Link"
+                : "Update Password"}
             </Button>
           </div>
         </DialogContent>

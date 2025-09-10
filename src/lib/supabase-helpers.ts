@@ -204,6 +204,37 @@ export const memberHelpers = {
     return transformedData.filter((item) => item.user_profile !== null);
   },
 
+  // Get member by ID with profile
+  async getMemberById(memberId: string): Promise<(Member & { user_profile: UserProfile }) | null> {
+    try {
+      const client = await getSupabaseClient();
+      
+      const { data, error } = await client
+        .from("members")
+        .select(
+          `
+          *,
+          user_profile:user_profiles(*)
+        `
+        )
+        .eq("id", memberId)
+        .single();
+
+      if (error) {
+        console.error(`Error fetching member ${memberId}:`, error);
+        return null;
+      }
+
+      return data ? {
+        ...data,
+        user_profile: data.user_profile || null,
+      } : null;
+    } catch (error) {
+      console.error(`Failed to get member ${memberId}:`, error);
+      return null;
+    }
+  },
+
   // Create complete member with auth account
   async createMemberWithAuth(memberData: {
     email: string;
@@ -940,6 +971,51 @@ export const hairstylistHelpers = {
       throw error;
     }
   },
+
+  // Send password reset email
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login?type=recovery`,
+      });
+
+      if (error) {
+        console.error("Error sending password reset email:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset email sent successfully to:", email);
+    } catch (error) {
+      console.error("💥 Error in sendPasswordResetEmail:", error);
+      throw error;
+    }
+  },
+
+  // Reset password directly (admin only)
+  async resetPasswordDirect(userId: string, newPassword: string): Promise<void> {
+    try {
+      if (!supabaseAdmin) {
+        throw new Error("Admin privileges required for direct password reset");
+      }
+
+      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        {
+          password: newPassword,
+        }
+      );
+
+      if (error) {
+        console.error("Error resetting password directly:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset successfully for user:", userId);
+    } catch (error) {
+      console.error("💥 Error in resetPasswordDirect:", error);
+      throw error;
+    }
+  },
 };
 
 // Visit management helpers
@@ -1092,103 +1168,23 @@ export const visitHelpers = {
 
       console.log("✅ Visit created successfully:", visit);
       
-      // Manual points calculation (since trigger has issues)
-      try {
-        console.log("🎯 Starting manual points calculation...");
-        
-        // Get member's current tier
-        const { data: member, error: memberError } = await supabaseAdmin
-          .from('members')
-          .select('membership_tier, membership_points, total_visits, total_spent')
-          .eq('id', visitData.member_id)
-          .single();
-          
-        console.log("📊 Member data before update:", { member, memberError });
-          
-        if (!memberError && member) {
-          // Calculate tier multiplier
-          const tierMultiplier = {
-            'bronze': 1.0,
-            'silver': 1.2,
-            'gold': 1.5,
-            'platinum': 1.8,
-            'diamond': 2.0
-          }[member.membership_tier] || 1.0;
-          
-          // Calculate points (1 point per 10k IDR)
-          const pointsEarned = Math.floor((visitData.final_price / 10000) * tierMultiplier);
-          
-          console.log(`� Points calculation details:`, {
-            final_price: visitData.final_price,
-            membership_tier: member.membership_tier,
-            tierMultiplier,
-            pointsEarned,
-            current_points: member.membership_points,
-            new_points_total: member.membership_points + pointsEarned
-          });
-          
-          // Update member stats
-          const updateData = {
-            membership_points: member.membership_points + pointsEarned,
-            total_visits: member.total_visits + 1,
-            total_spent: member.total_spent + visitData.final_price,
-            last_visit_date: new Date().toISOString().split('T')[0]
-          };
-          
-          console.log(`🔄 Updating member with data:`, updateData);
-          
-          const { data: updatedMember, error: updateError } = await supabaseAdmin
+      // DISABLED: Manual points calculation to prevent duplication with database triggers
+      // Database triggers will automatically handle member stats and hairstylist revenue updates
+      console.log("🔄 Database trigger will handle member/hairstylist stats updates automatically");
+      
+      // Optional: Verify that triggers are working by checking updated data after a brief delay
+      setTimeout(async () => {
+        try {
+          const { data: updatedMember } = await supabaseAdmin
             .from('members')
-            .update(updateData)
+            .select('membership_points, total_visits, total_spent')
             .eq('id', visitData.member_id)
-            .select()
             .single();
-            
-          console.log(`📈 Member update result:`, { updatedMember, updateError });
-            
-          if (updateError) {
-            console.error('❌ Failed to update member stats:', updateError);
-            throw new Error(`Member update failed: ${updateError.message}`);
-          } else {
-            console.log(`✅ Member stats updated successfully: +${pointsEarned} points (${member.membership_points} → ${member.membership_points + pointsEarned})`);
-          }
-          
-          // Update hairstylist stats
-          console.log("👨‍💼 Updating hairstylist stats...");
-          const { data: hairstylist, error: hairstylistError } = await supabaseAdmin
-            .from('hairstylists')
-            .select('total_revenue')
-            .eq('id', visitData.hairstylist_id)
-            .single();
-            
-          console.log("👨‍💼 Hairstylist data:", { hairstylist, hairstylistError });
-            
-          if (!hairstylistError && hairstylist) {
-            const { data: updatedHairstylist, error: hsUpdateError } = await supabaseAdmin
-              .from('hairstylists')
-              .update({
-                total_revenue: hairstylist.total_revenue + visitData.final_price
-              })
-              .eq('id', visitData.hairstylist_id)
-              .select()
-              .single();
-              
-            console.log('👨‍💼 Hairstylist update result:', { updatedHairstylist, hsUpdateError });
-            
-            if (hsUpdateError) {
-              console.error('⚠️ Failed to update hairstylist stats:', hsUpdateError);
-            } else {
-              console.log('✅ Hairstylist stats updated successfully');
-            }
-          }
-        } else {
-          console.error('❌ Failed to fetch member data or member not found:', { memberError, member });
+          console.log("📊 Member stats after trigger update:", updatedMember);
+        } catch (error) {
+          console.log("⚠️ Could not verify member stats update:", error);
         }
-      } catch (pointsError) {
-        console.error('💥 Points calculation failed (CRITICAL):', pointsError);
-        // Don't throw error - visit was created successfully, but points calculation failed
-        console.log('⚠️ Visit created but points calculation failed - manual intervention may be needed');
-      }
+      }, 1000);
       
       return visit;
     } catch (error) {

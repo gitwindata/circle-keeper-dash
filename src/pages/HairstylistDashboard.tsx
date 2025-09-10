@@ -102,6 +102,7 @@ const HairstylistDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
 
   useEffect(() => {
     if (user && userProfile?.role === "hairstylist") {
@@ -112,7 +113,14 @@ const HairstylistDashboard = () => {
   const loadHairstylistData = async () => {
     if (!user) return;
 
+    // Prevent multiple simultaneous reloads
+    if (isReloading) {
+      console.log("⏳ Already reloading data, skipping...");
+      return;
+    }
+
     try {
+      setIsReloading(true);
       setLoading(true);
       console.log("🔄 Loading hairstylist data for user ID:", user.id);
 
@@ -143,6 +151,12 @@ const HairstylistDashboard = () => {
         limit: 20,
       });
       setRecentVisits(visits);
+      console.log("🔍 Debug: Loaded visits with member data:", visits.map(v => ({
+        id: v.id,
+        member_id: v.member_id,
+        member: v.member,
+        memberName: v.member?.user_profile?.full_name
+      })));
 
       // Calculate stats
       const now = new Date();
@@ -182,16 +196,38 @@ const HairstylistDashboard = () => {
       // Generate recent activity
       const activities: RecentActivity[] = [];
 
-      // Add recent visits
-      visits.slice(0, 5).forEach((visit) => {
-        activities.push({
+      // Add recent visits with proper member name handling
+      const visitPromises = visits.slice(0, 5).map(async (visit) => {
+        let memberName = "Unknown Member";
+        
+        if (visit.member?.user_profile?.full_name) {
+          memberName = visit.member.user_profile.full_name;
+        } else if (visit.member_id) {
+          // If we have member_id but no member data due to RLS, fetch it separately
+          try {
+            const memberProfile = await memberHelpers.getMemberById(visit.member_id);
+            if (memberProfile?.user_profile?.full_name) {
+              memberName = memberProfile.user_profile.full_name;
+            } else {
+              memberName = `Member (${visit.member_id.slice(0, 8)}...)`;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Could not fetch member data for ID: ${visit.member_id}`, error);
+            memberName = `Member (${visit.member_id.slice(0, 8)}...)`;
+          }
+        }
+        
+        return {
           id: `visit-${visit.id}`,
-          type: "visit",
-          description: `Visit completed with ${visit.member?.user_profile?.full_name}`,
+          type: "visit" as const,
+          description: `Visit completed with ${memberName}`,
           timestamp: visit.visit_date,
-          member: visit.member?.user_profile?.full_name,
-        });
+          member: memberName,
+        };
       });
+      
+      const resolvedActivities = await Promise.all(visitPromises);
+      activities.push(...resolvedActivities);
 
       // Sort activities by timestamp
       activities.sort(
@@ -208,12 +244,15 @@ const HairstylistDashboard = () => {
       });
     } finally {
       setLoading(false);
+      setIsReloading(false);
     }
   };
 
   const handleAssignmentComplete = () => {
-    // Reload data after assignment
-    loadHairstylistData();
+    // Reload data after assignment with debounce
+    setTimeout(() => {
+      loadHairstylistData();
+    }, 500);
     setShowAssignmentDialog(false);
   };
 
@@ -689,7 +728,10 @@ const HairstylistDashboard = () => {
                 assignedMembers={assignedMembers}
                 onVisitRecorded={() => {
                   setShowVisitForm(false);
-                  loadHairstylistData();
+                  // Debounce the data reload to prevent multiple calls
+                  setTimeout(() => {
+                    loadHairstylistData();
+                  }, 500);
                 }}
                 onCancel={() => setShowVisitForm(false)}
               />
