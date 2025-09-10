@@ -1025,6 +1025,100 @@ export const hairstylistHelpers = {
   },
 };
 
+
+const calculateMemberPoints = (finalPrice: number, membershipTier: string): number => {
+  const tierMultipliers = {
+    'bronze': 1.0,
+    'silver': 1.2,
+    'gold': 1.5,
+    'platinum': 1.8,
+    'diamond': 2.0
+  };
+  
+  const multiplier = tierMultipliers[membershipTier as keyof typeof tierMultipliers] || 1.0;
+  return Math.floor((finalPrice / 10000) * multiplier);
+};
+
+const updateMemberStats = async (memberId: string, finalPrice: number) => {
+  // Get current member data
+  const { data: member, error: memberError } = await supabaseAdmin
+    .from('members')
+    .select('membership_tier, membership_points, total_visits, total_spent')
+    .eq('id', memberId)
+    .single();
+    
+  if (memberError || !member) {
+    throw new Error(`Failed to fetch member: ${memberError?.message}`);
+  }
+  
+  // Calculate points and prepare update data
+  const pointsEarned = calculateMemberPoints(finalPrice, member.membership_tier);
+  const updateData = {
+    membership_points: member.membership_points + pointsEarned,
+    total_visits: member.total_visits + 1,
+    total_spent: member.total_spent + finalPrice,
+    last_visit_date: new Date().toISOString().split('T')[0]
+  };
+  
+  // Update member stats with race condition protection
+  const { error: updateError } = await supabaseAdmin
+    .from('members')
+    .update(updateData)
+    .eq('id', memberId)
+    .eq('total_spent', member.total_spent); // Prevent race condition
+    
+  if (updateError) {
+    throw new Error(`Member update failed: ${updateError.message}`);
+  }
+  
+  return { pointsEarned, newTotal: updateData.membership_points };
+};
+
+const updateHairstylistRevenue = async (hairstylistId: string, finalPrice: number) => {
+  const { data: hairstylist, error: hsError } = await supabaseAdmin
+    .from('hairstylists')
+    .select('total_revenue')
+    .eq('id', hairstylistId)
+    .single();
+    
+  if (hsError || !hairstylist) {
+    console.warn('Could not update hairstylist revenue:', hsError?.message);
+    return;
+  }
+  
+  await supabaseAdmin
+    .from('hairstylists')
+    .update({ total_revenue: hairstylist.total_revenue + finalPrice })
+    .eq('id', hairstylistId);
+};
+
+const createVisitServices = async (visitId: string, serviceIds: string[]) => {
+  if (!serviceIds.length) return;
+  
+  // Get service details for pricing and duration
+  const serviceDetails = await Promise.all(
+    serviceIds.map(id => serviceHelpers.getServiceById(id))
+  );
+  
+  const visitServices = serviceIds.map((serviceId, index) => {
+    const service = serviceDetails[index];
+    return {
+      visit_id: visitId,
+      service_id: serviceId,
+      price: service?.base_price || 0,
+      duration_minutes: service?.duration_minutes || 0,
+    };
+  });
+  
+  const { error } = await supabaseAdmin
+    .from('visit_services')
+    .insert(visitServices);
+    
+  if (error) {
+    console.warn('Failed to create visit services:', error.message);
+  }
+};
+
 // Visit management helpers
 export const visitHelpers = {
   // Create a new visit with services
@@ -1037,167 +1131,62 @@ export const visitHelpers = {
     final_price: number;
     hairstylist_notes?: string;
     visit_date?: string;
+    total_duration?: number;
   }) {
     try {
-      console.log("🎯 Creating visit with data:", visitData);
-
-      // Check if hairstylist exists
-      const { data: hairstylist, error: hairstylistError } = await supabaseAdmin
-        .from("hairstylists")
-        .select("id")
-        .eq("id", visitData.hairstylist_id)
-        .single();
-
-      console.log("�‍💼 Hairstylist check:", {
-        hairstylist,
-        hairstylistError,
-        searchId: visitData.hairstylist_id,
-      });
-
-      // Check if member exists
-      const { data: member, error: memberError } = await supabaseAdmin
-        .from("members")
-        .select("id")
-        .eq("id", visitData.member_id)
-        .single();
-
-      console.log("� Member check:", {
-        member,
-        memberError,
-        searchId: visitData.member_id,
-      });
-
-      if (hairstylistError || !hairstylist) {
-        throw new Error(
-          `Hairstylist not found with ID: ${visitData.hairstylist_id}`
-        );
+      // Validate hairstylist and member exist
+      const [hairstylistCheck, memberCheck] = await Promise.all([
+        supabaseAdmin.from('hairstylists').select('id').eq('id', visitData.hairstylist_id).single(),
+        supabaseAdmin.from('members').select('id').eq('id', visitData.member_id).single()
+      ]);
+      
+      if (hairstylistCheck.error || !hairstylistCheck.data) {
+        throw new Error(`Hairstylist not found: ${visitData.hairstylist_id}`);
       }
-
-      if (memberError || !member) {
-        throw new Error(`Member not found with ID: ${visitData.member_id}`);
+      
+      if (memberCheck.error || !memberCheck.data) {
+        throw new Error(`Member not found: ${visitData.member_id}`);
       }
-
-      const visitInsertData = {
-        member_id: visitData.member_id,
-        hairstylist_id: visitData.hairstylist_id,
-        total_price: visitData.total_price,
-        discount_percentage: visitData.discount_percentage || 0,
-        final_price: visitData.final_price,
-        hairstylist_notes: visitData.hairstylist_notes || null,
-        visit_date: visitData.visit_date || new Date().toISOString(),
-        status: "completed",
-      };
-
-      console.log("📋 Visit insert object:", visitInsertData);
-
-      // Try with minimal fields first to isolate the problem
-      const minimalInsert = {
-        member_id: visitData.member_id,
-        hairstylist_id: visitData.hairstylist_id,
-        total_price: visitData.total_price,
-        final_price: visitData.final_price,
-      };
-
-      console.log("🧪 Testing minimal insert:", minimalInsert);
-
-      // Try with different status to avoid trigger
-      const testInsert = {
-        member_id: visitData.member_id,
-        hairstylist_id: visitData.hairstylist_id,
-        total_price: visitData.total_price,
-        discount_percentage: visitData.discount_percentage || 0,
-        final_price: visitData.final_price,
-        hairstylist_notes: visitData.hairstylist_notes || null,
-        visit_date: visitData.visit_date || new Date().toISOString(),
-        status: "completed", // Set as completed to trigger points calculation
-      };
-
-      console.log("🔧 Testing with scheduled status:", testInsert);
-
-      // Test if we can query the table first
-      const { data: existingVisits, error: queryError } = await supabaseAdmin
-        .from("visits")
-        .select("id, member_id, hairstylist_id")
-        .limit(1);
-
-      console.log("� Can we query visits table?:", {
-        existingVisits,
-        queryError,
-      });
-
-      // Use admin client to bypass RLS
+      
+      // Create visit record
       const { data: visit, error: visitError } = await supabaseAdmin
-        .from("visits")
-        .insert(testInsert)
+        .from('visits')
+        .insert({
+          member_id: visitData.member_id,
+          hairstylist_id: visitData.hairstylist_id,
+          total_price: visitData.total_price,
+          discount_percentage: visitData.discount_percentage || 0,
+          final_price: visitData.final_price,
+          hairstylist_notes: visitData.hairstylist_notes || null,
+          visit_date: visitData.visit_date || new Date().toISOString(),
+          total_duration: visitData.total_duration || null,
+          status: 'completed',
+        })
         .select()
         .single();
-
-      console.log("📝 Visit creation result:", { visit, visitError });
-
+        
       if (visitError) {
-        console.error("❌ Visit creation failed:", visitError);
-        throw visitError;
+        throw new Error(`Failed to create visit: ${visitError.message}`);
       }
-
-      // Insert visit services using admin client
-      if (visitData.service_ids && visitData.service_ids.length > 0) {
-        // Get service details to set proper price and duration
-        const serviceDetails = await Promise.all(
-          visitData.service_ids.map((serviceId) =>
-            serviceHelpers.getServiceById(serviceId)
-          )
-        );
-
-        const visitServices = visitData.service_ids.map((serviceId, index) => {
-          const service = serviceDetails[index];
-          return {
-            visit_id: visit.id,
-            service_id: serviceId,
-            price: service?.base_price || 0,
-            duration_minutes: service?.duration_minutes || 0,
-          };
-        });
-
-        console.log("🔧 Creating visit services:", visitServices);
-
-        const { error: servicesError } = await supabaseAdmin
-          .from("visit_services")
-          .insert(visitServices);
-
-        console.log("📋 Visit services creation result:", { servicesError });
-
-        if (servicesError) {
-          console.error("❌ Visit services creation failed:", servicesError);
-          // Don't throw error - visit is already created successfully
-          console.log("⚠️ Visit created but services not linked");
-        }
-      }
-
-      console.log("✅ Visit created successfully:", visit);
-
-      // DISABLED: Manual points calculation to prevent duplication with database triggers
-      // Database triggers will automatically handle member stats and hairstylist revenue updates
-      console.log(
-        "🔄 Database trigger will handle member/hairstylist stats updates automatically"
-      );
-
-      // Optional: Verify that triggers are working by checking updated data after a brief delay
-      setTimeout(async () => {
-        try {
-          const { data: updatedMember } = await supabaseAdmin
-            .from("members")
-            .select("membership_points, total_visits, total_spent")
-            .eq("id", visitData.member_id)
-            .single();
-          console.log("📊 Member stats after trigger update:", updatedMember);
-        } catch (error) {
-          console.log("⚠️ Could not verify member stats update:", error);
-        }
-      }, 1000);
-
-      return visit;
+      
+      // Create visit services (non-blocking)
+      await createVisitServices(visit.id, visitData.service_ids);
+      
+      // Update member stats and calculate points
+      const { pointsEarned } = await updateMemberStats(visitData.member_id, visitData.final_price);
+      
+      // Update hairstylist revenue (non-blocking)
+      await updateHairstylistRevenue(visitData.hairstylist_id, visitData.final_price);
+      
+      return {
+        success: true,
+        visit,
+        pointsEarned,
+        message: `Visit created successfully. Member earned ${pointsEarned} points.`
+      };
+      
     } catch (error) {
-      console.error("💥 Error creating visit:", error);
+      console.error('Error creating visit:', error);
       throw error;
     }
   },
