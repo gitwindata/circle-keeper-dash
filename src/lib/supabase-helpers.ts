@@ -1671,3 +1671,88 @@ export const notesHelpers = {
     }
   }
 };
+
+// Member name helpers - uses admin client to bypass RLS issues
+export const memberNameHelpers = {
+  // Get member name by ID using admin client to bypass RLS
+  async getMemberName(memberId: string): Promise<string> {
+    try {
+      // Try with admin client first to bypass RLS
+      if (supabaseAdmin) {
+        const { data, error } = await supabaseAdmin
+          .from('user_profiles')
+          .select('full_name')
+          .eq('id', memberId)
+          .single();
+          
+        if (!error && data?.full_name) {
+          return data.full_name;
+        }
+      }
+      
+      // Fallback to regular client
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('id', memberId)
+        .single();
+        
+      if (error) {
+        console.warn('Could not fetch member name:', error);
+        return 'Unknown Member';
+      }
+      
+      return data?.full_name || 'Unknown Member';
+    } catch (err) {
+      console.error('Error fetching member name:', err);
+      return 'Unknown Member';
+    }
+  },
+
+  // Get multiple member names at once
+  async getMemberNames(memberIds: string[]): Promise<Record<string, string>> {
+    try {
+      // Try with admin client first
+      if (supabaseAdmin) {
+        const { data, error } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', memberIds);
+          
+        if (!error && data) {
+          return data.reduce((acc, profile) => {
+            acc[profile.id] = profile.full_name || 'Unknown Member';
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+      
+      // Fallback to regular client
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, full_name')
+        .in('id', memberIds);
+        
+      if (error) {
+        console.warn('Could not fetch member names:', error);
+        // Return default names for all IDs
+        return memberIds.reduce((acc, id) => {
+          acc[id] = 'Unknown Member';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+      
+      return data.reduce((acc, profile) => {
+        acc[profile.id] = profile.full_name || 'Unknown Member';
+        return acc;
+      }, {} as Record<string, string>);
+    } catch (err) {
+      console.error('Error fetching member names:', err);
+      // Return default names for all IDs
+      return memberIds.reduce((acc, id) => {
+        acc[id] = 'Unknown Member';
+        return acc;
+      }, {} as Record<string, string>);
+    }
+  }
+};

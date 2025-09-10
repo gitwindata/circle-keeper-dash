@@ -48,6 +48,7 @@ import {
   hairstylistHelpers,
   visitHelpers,
   memberHelpers,
+  memberNameHelpers,
 } from "../lib/supabase-helpers";
 import { MembershipCalculator } from "../lib/membership-calculator";
 import VisitRecordingForm from "../components/VisitRecordingForm";
@@ -200,19 +201,24 @@ const HairstylistDashboard = () => {
       const visitPromises = visits.slice(0, 5).map(async (visit) => {
         let memberName = "Unknown Member";
         
+        console.log("🔍 Processing visit:", {
+          visitId: visit.id,
+          memberId: visit.member_id,
+          memberData: visit.member,
+          userProfile: visit.member?.user_profile
+        });
+        
         if (visit.member?.user_profile?.full_name) {
           memberName = visit.member.user_profile.full_name;
+          console.log("✅ Got member name from visit data:", memberName);
         } else if (visit.member_id) {
-          // If we have member_id but no member data due to RLS, fetch it separately
+          // Use new memberNameHelpers to bypass RLS issues
+          console.log("⚠️ No member profile in visit data, using memberNameHelpers...");
           try {
-            const memberProfile = await memberHelpers.getMemberById(visit.member_id);
-            if (memberProfile?.user_profile?.full_name) {
-              memberName = memberProfile.user_profile.full_name;
-            } else {
-              memberName = `Member (${visit.member_id.slice(0, 8)}...)`;
-            }
+            memberName = await memberNameHelpers.getMemberName(visit.member_id);
+            console.log("✅ Got member name from memberNameHelpers:", memberName);
           } catch (error) {
-            console.warn(`⚠️ Could not fetch member data for ID: ${visit.member_id}`, error);
+            console.warn(`💥 Could not fetch member name for ID: ${visit.member_id}`, error);
             memberName = `Member (${visit.member_id.slice(0, 8)}...)`;
           }
         }
