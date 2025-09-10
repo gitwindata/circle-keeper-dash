@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, Download, Plus, Edit, Trash2 } from "lucide-react";
+import { Search, Download, Plus, Edit, Trash2, Key, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { memberHelpers } from "../lib/supabase-helpers";
+import { memberHelpers, handleSupabaseError } from "../lib/supabase-helpers";
 import { Member, UserProfile } from "../types";
 
 interface MemberFormData {
@@ -62,6 +62,11 @@ const Members = () => {
     (Member & { user_profile: UserProfile | null }) | null
   >(null);
   const [loading, setLoading] = useState(true);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<
+    (Member & { user_profile: UserProfile | null }) | null
+  >(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<MemberFormData>({
     full_name: "",
     email: "",
@@ -70,6 +75,12 @@ const Members = () => {
     whatsapp_number: "",
     instagram_handle: "",
     notes: "",
+  });
+
+  const [resetPasswordData, setResetPasswordData] = useState({
+    newPassword: "",
+    confirmPassword: "",
+    resetMethod: "email" as "email" | "direct",
   });
 
   const resetForm = () => {
@@ -206,6 +217,49 @@ const Members = () => {
     setShowAddDialog(false);
     setEditingMember(null);
     resetForm();
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedMember?.user_profile?.email) {
+      toast.error("Member email not found");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      if (resetPasswordData.resetMethod === "email") {
+        // Send email reset link
+        await memberHelpers.sendPasswordResetEmail(selectedMember.user_profile.email);
+        toast.success(`Reset link sent to ${selectedMember.user_profile.email}`);
+      } else {
+        // Direct password reset
+        if (!resetPasswordData.newPassword || resetPasswordData.newPassword.length < 6) {
+          toast.error("Password must be at least 6 characters long.");
+          return;
+        }
+        
+        if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+          toast.error("Passwords do not match.");
+          return;
+        }
+
+        await memberHelpers.resetPasswordDirect(selectedMember.id, resetPasswordData.newPassword);
+        toast.success(`Password has been updated for ${selectedMember.user_profile.full_name}`);
+      }
+      
+      setIsResetPasswordDialogOpen(false);
+      setResetPasswordData({
+        newPassword: "",
+        confirmPassword: "",
+        resetMethod: "email",
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      toast.error(handleSupabaseError(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -516,6 +570,17 @@ const Members = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setIsResetPasswordDialogOpen(true);
+                          }}
+                          disabled={!member.user_profile}
+                        >
+                          <Key className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteMember(member.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -529,6 +594,138 @@ const Members = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Reset Password Dialog */}
+      <Dialog
+        open={isResetPasswordDialogOpen}
+        onOpenChange={setIsResetPasswordDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Choose how to reset password for{" "}
+              {selectedMember?.user_profile?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Reset Method Selection */}
+            <div className="space-y-3">
+              <Label>Reset Method</Label>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resetMethod"
+                    value="email"
+                    checked={resetPasswordData.resetMethod === "email"}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        resetMethod: e.target.value as "email" | "direct",
+                        newPassword: "",
+                        confirmPassword: "",
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">Send reset link via email</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resetMethod"
+                    value="direct"
+                    checked={resetPasswordData.resetMethod === "direct"}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        resetMethod: e.target.value as "email" | "direct",
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">Set new password directly</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Email Reset Info */}
+            {resetPasswordData.resetMethod === "email" && (
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  A password reset link will be sent to:{" "}
+                  <strong>{selectedMember?.user_profile?.email}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Direct Reset Form */}
+            {resetPasswordData.resetMethod === "direct" && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="Enter new password (min. 6 chars)"
+                    value={resetPasswordData.newPassword}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        newPassword: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={resetPasswordData.confirmPassword}
+                    onChange={(e) =>
+                      setResetPasswordData((prev) => ({
+                        ...prev,
+                        confirmPassword: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                {resetPasswordData.newPassword &&
+                  resetPasswordData.confirmPassword &&
+                  resetPasswordData.newPassword !== resetPasswordData.confirmPassword && (
+                    <p className="text-sm text-red-600">Passwords do not match</p>
+                  )}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsResetPasswordDialogOpen(false);
+                setResetPasswordData({
+                  newPassword: "",
+                  confirmPassword: "",
+                  resetMethod: "email",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleResetPassword} disabled={isSubmitting}>
+              {isSubmitting && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              {resetPasswordData.resetMethod === "email"
+                ? "Send Reset Link"
+                : "Update Password"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

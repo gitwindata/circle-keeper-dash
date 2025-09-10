@@ -682,6 +682,54 @@ export const memberHelpers = {
 
     if (error) throw error;
   },
+
+  // Send password reset email
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login?type=recovery`,
+      });
+
+      if (error) {
+        console.error("Error sending password reset email:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset email sent successfully to:", email);
+    } catch (error) {
+      console.error("💥 Error in sendPasswordResetEmail:", error);
+      throw error;
+    }
+  },
+
+  // Reset password directly (admin only)
+  async resetPasswordDirect(
+    userId: string,
+    newPassword: string
+  ): Promise<void> {
+    try {
+      if (!supabaseAdmin) {
+        throw new Error("Admin privileges required for direct password reset");
+      }
+
+      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        {
+          password: newPassword,
+        }
+      );
+
+      if (error) {
+        console.error("Error resetting password:", error);
+        throw error;
+      }
+
+      console.log("✅ Password reset successfully for user:", userId);
+    } catch (error) {
+      console.error("💥 Error in resetPasswordDirect:", error);
+      throw error;
+    }
+  },
 };
 
 // Hairstylist management helpers
