@@ -47,7 +47,8 @@ CREATE TABLE hairstylists (
     total_revenue DECIMAL(12,2) DEFAULT 0,
     average_rating DECIMAL(3,2) DEFAULT 0,
     schedule_notes TEXT,
-    commission_rate DECIMAL(5,2) DEFAULT 0
+    commission_rate DECIMAL(5,2) DEFAULT 0,
+    cabang TEXT
 );
 
 -- Member specific data with membership tracking

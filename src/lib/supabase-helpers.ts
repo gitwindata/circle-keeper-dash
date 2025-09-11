@@ -809,6 +809,7 @@ export const hairstylistHelpers = {
     email: string;
     full_name: string;
     phone: string;
+    cabang?: string;
     specialties: string[];
     experience_years: number;
     schedule_notes?: string;
@@ -851,7 +852,7 @@ export const hairstylistHelpers = {
         throw profileError;
       }
 
-      // Create hairstylist record
+      // Create hairstylist record with cabang field
       const { data: hairstylist, error: hairstylistError } = await adminClient
         .from("hairstylists")
         .insert({
@@ -859,6 +860,7 @@ export const hairstylistHelpers = {
           specialties: hairstylistData.specialties,
           experience_years: hairstylistData.experience_years,
           schedule_notes: hairstylistData.schedule_notes || "",
+          cabang: hairstylistData.cabang || null,
           commission_rate: 50.0, // Default commission rate
         })
         .select()
@@ -891,6 +893,7 @@ export const hairstylistHelpers = {
       full_name?: string;
       email?: string;
       phone?: string;
+      cabang?: string;
       specialties?: string[];
       experience_years?: number;
       schedule_notes?: string;
@@ -945,6 +948,8 @@ export const hairstylistHelpers = {
       hairstylistUpdate.experience_years = updateData.experience_years;
     if (updateData.schedule_notes !== undefined)
       hairstylistUpdate.schedule_notes = updateData.schedule_notes;
+    if (updateData.cabang !== undefined)
+      hairstylistUpdate.cabang = updateData.cabang;
 
     const { data, error } = await client
       .from("hairstylists")

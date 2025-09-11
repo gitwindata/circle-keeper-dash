@@ -52,6 +52,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { hairstylistHelpers } from "@/lib/supabase-helpers";
 import { handleSupabaseError } from "@/lib/supabase-helpers";
+import { supabase } from "@/lib/supabase";
 import type { Hairstylist, UserProfile } from "@/types";
 
 // Extended hairstylist type for UI purposes
@@ -86,6 +87,7 @@ const Hairstylists = () => {
     full_name: "",
     email: "",
     phone: "",
+    cabang: "",
     specialties: "",
     experience_years: 0,
     bio: "",
@@ -95,6 +97,7 @@ const Hairstylists = () => {
     full_name: "",
     email: "",
     phone: "",
+    cabang: "",
     specialties: "",
     experience_years: 0,
     bio: "",
@@ -110,11 +113,13 @@ const Hairstylists = () => {
   const loadHairstylists = async () => {
     try {
       setIsLoading(true);
+      console.log('🔍 Loading hairstylists data...');
       const data = await hairstylistHelpers.getAllHairstylistsWithProfiles();
+      console.log('📊 Hairstylists data received:', data);
       setHairstylists(data);
       setFilteredHairstylists(data);
     } catch (error) {
-      console.error("Error loading hairstylists:", error);
+      console.error("❌ Error loading hairstylists:", error);
       toast({
         title: "Error",
         description: handleSupabaseError(error),
@@ -189,6 +194,7 @@ const Hairstylists = () => {
         email: newHairstylist.email,
         full_name: newHairstylist.full_name,
         phone: newHairstylist.phone,
+        cabang: newHairstylist.cabang,
         specialties: specialtiesArray,
         experience_years: newHairstylist.experience_years,
         schedule_notes: newHairstylist.bio,
@@ -200,6 +206,7 @@ const Hairstylists = () => {
         full_name: "",
         email: "",
         phone: "",
+        cabang: "",
         specialties: "",
         experience_years: 0,
         bio: "",
@@ -273,6 +280,7 @@ const Hairstylists = () => {
         full_name: editHairstylist.full_name,
         email: editHairstylist.email,
         phone: editHairstylist.phone,
+        cabang: editHairstylist.cabang,
         specialties: specialtiesArray,
         experience_years: editHairstylist.experience_years,
         schedule_notes: editHairstylist.bio,
@@ -306,6 +314,7 @@ const Hairstylists = () => {
       full_name: hairstylist.user_profile.full_name,
       email: hairstylist.user_profile.email,
       phone: hairstylist.user_profile.phone || "",
+      cabang: hairstylist.cabang || "",
       specialties: hairstylist.specialties.join(", "),
       experience_years: hairstylist.experience_years,
       bio: hairstylist.schedule_notes || "",
@@ -552,6 +561,7 @@ const Hairstylists = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Hairstylist</TableHead>
+                  <TableHead>Cabang</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Specialties</TableHead>
                   <TableHead>Experience</TableHead>
@@ -583,6 +593,14 @@ const Hairstylists = () => {
                           <div className="text-sm text-muted-foreground">
                             {hairstylist.experience_years} years experience
                           </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {hairstylist.cabang || "N/A"}
                         </div>
                       </div>
                     </TableCell>
@@ -740,6 +758,23 @@ const Hairstylists = () => {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="cabang">Cabang</Label>
+                <Input
+                  id="cabang"
+                  placeholder="Enter branch name"
+                  value={newHairstylist.cabang}
+                  onChange={(e) =>
+                    setNewHairstylist((prev) => ({
+                      ...prev,
+                      cabang: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="experience">Experience (years)</Label>
                 <Input
                   id="experience"
@@ -888,6 +923,23 @@ const Hairstylists = () => {
                   }
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cabang">Cabang</Label>
+                <Input
+                  id="edit-cabang"
+                  placeholder="Enter branch name"
+                  value={editHairstylist.cabang}
+                  onChange={(e) =>
+                    setEditHairstylist((prev) => ({
+                      ...prev,
+                      cabang: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-experience">Experience (years)</Label>
                 <Input

@@ -91,6 +91,7 @@ export type Database = {
           average_rating: number;
           schedule_notes: string | null;
           commission_rate: number;
+          cabang: string | null;
         };
         Insert: {
           id: string;
@@ -103,6 +104,7 @@ export type Database = {
           average_rating?: number;
           schedule_notes?: string | null;
           commission_rate?: number;
+          cabang?: string | null;
         };
         Update: {
           id?: string;
@@ -115,6 +117,7 @@ export type Database = {
           average_rating?: number;
           schedule_notes?: string | null;
           commission_rate?: number;
+          cabang?: string | null;
         };
       };
       members: {

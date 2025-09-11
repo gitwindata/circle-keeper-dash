@@ -40,6 +40,7 @@ export interface Hairstylist {
   average_rating: number;
   schedule_notes?: string;
   commission_rate: number;
+  cabang?: string;
 }
 
 export interface Member {
